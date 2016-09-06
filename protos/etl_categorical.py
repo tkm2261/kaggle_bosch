@@ -11,9 +11,9 @@ APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data/')
 
 CAT_TRAIN_DATA = os.path.join(DATA_DIR, 'train_categorical.csv.gz')
-CAT_TEST_DATA = os.path.join(DATA_DIR, 'test_categorical.csv')
+CAT_TEST_DATA = os.path.join(DATA_DIR, 'test_categorical.csv.gz')
 
-NUM_TRAIN_DATA = os.path.join(DATA_DIR, 'train_numeric.csv')
+NUM_TRAIN_DATA = os.path.join(DATA_DIR, 'train_numeric.csv.gz')
 
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
@@ -97,9 +97,18 @@ if __name__ == '__main__':
     logger.info('load data 0')
     target = pandas.read_csv(NUM_TRAIN_DATA, usecols=['Response'])['Response']
     logger.info('load data 1')
-    pd_data = pandas.read_csv(CAT_TRAIN_DATA, compression='gzip', chunksize=100000)
+
+    pd_data = None
+
+    aaa = pandas.read_csv(CAT_TRAIN_DATA, compression='gzip', chunksize=100000, dtype=numpy.unicode)
+    for i, a in enumerate(aaa):
+        if pd_data is None:
+            pd_data = a
+        else:
+            pd_data = pd_data.append(a)
+            logger.info('aaa: %s (%s, %s)' % (i, pd_data.shape[0], pd_data.shape[1]))
     logger.info('load data 2')
-    pd_data = pd_data.apply(lambda x: int(x[1:]))
+    pd_dOBata = pd_data.apply(lambda x: int(x[1:]))
     logger.info('load data 3')
     pd_data = pd_data.fillna(0)
 
@@ -110,7 +119,6 @@ if __name__ == '__main__':
     pd_ext_data = chi.fit_transform(pd_data, target)
     pd_ext_data['Id'] = id_col
 
-    
     logger.info('load data 1')
     pd_data = pandas.read_csv(CAT_TEST_DATA)
     logger.info('load data 2')
@@ -124,5 +132,3 @@ if __name__ == '__main__':
 
     pd_ext_data = chi.fit_transform(pd_data, target)
     pd_ext_data['Id'] = id_col
-
-    
