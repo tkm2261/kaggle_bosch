@@ -3,11 +3,13 @@ import os
 import logging
 import pandas
 import pickle
+import numpy
 from xgboost import XGBClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT)
+DATA_DIR = os.path.join(APP_ROOT, 'data')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TRAIN_POSITIVE_DATA = os.path.join(DATA_DIR, 'train_simple_join_pos.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
@@ -32,21 +34,16 @@ if __name__ == '__main__':
     logger.info('feature_column %s' % len(feature_column))
     pos_target = train_pos_data[TARGET_COLUMN_NAME]
     pos_data = train_pos_data[feature_column]
+
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5,
               'max_depth': 5, 'min_child_weight': 0.01}
 
-    pos_target = train_pos_data[TARGET_COLUMN_NAME]
-    pos_data = train_pos_data[feature_column]
-
+    model = None
+    
     for i, train_data in enumerate(list_train_data):
-        logger.info('pos shape %s %s' % pos_data.shape)
-        model = XGBClassifier(seed=0)
-        model.set_params(**params)
-
+        train_data = train_data.fillna(0)
+        
         if i == 0:
-            pos_target = train_pos_data[TARGET_COLUMN_NAME]
-            pos_data = train_pos_data[feature_column]
-
             pos_target = pos_target.append(train_data[TARGET_COLUMN_NAME])
             pos_data = pos_data.append(train_data[feature_column])
         else:
@@ -55,13 +52,22 @@ if __name__ == '__main__':
             neg_target = target[target == 0]
             neg_data = data[target == 0]
             score = model.predict_proba(neg_data)[:, 1]
+            thresh = float(sum(pos_target)) / len(pos_target)
+            idx = numpy.argsort(score)[::-1][:1000]
+            idx = [neg_data.index.values[ix] for ix in idx if score[ix] > thresh]
+            pos_target = pos_target.append(neg_target.ix[idx])
+            pos_data = pos_data.append(neg_data.ix[idx, :])
 
-            pos_target = pos_target.append(neg_target[score > 0.5])
-            pos_data = pos_data.append(neg_data[score > 0.5])
 
+        logger.info('%s: pos shape %s' % (i, pos_data.shape[0]))
+        model = LogisticRegression(n_jobs=-1)
+        #model = XGBClassifier(seed=0)
+        #model.set_params(**params)
         model.fit(pos_data, pos_target)
-        score = roc_auc_score(pos_target, model.predict_proba(pos_data)[:, :1])
+
+        score = roc_auc_score(pos_target, model.predict_proba(pos_data)[:, 1])
         logger.info('INSAMPLE score: %s' % score)
 
-    pos_data.to_csv('pos_data.csv')
-    pos_target.to_csv('pos_target.csv')
+        if (i + 1) % 10 == 0:
+            pos_data.to_csv('pos_data_%s.csv'%(i+1))
+            pos_target.to_csv('pos_target_%s.csv'%(i+1))
