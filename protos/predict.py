@@ -5,6 +5,7 @@ import os
 import pandas
 import logging
 import numpy
+import gc
 
 from feature import LIST_FEATURE_COLUMN_NAME
 
@@ -27,21 +28,26 @@ def main():
     with open('xgb_model.pkl', 'rb') as f:
         model = pickle.load(f)
 
-    all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=20000)
+    all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=100000)
     logger.info('end load')
 
     df_ans = pandas.DataFrame()
-    for df in all_df:
+    for i, df in enumerate(all_df):
         df = df.fillna(0)
-        data = df[LIST_FEATURE_COLUMN_NAME].values
-        predict = model.predict_proba(data)[:, 1]
-        predict = numpy.where(predict > 0.5, 1, 0)
+        data = df[LIST_FEATURE_COLUMN_NAME]
+        logger.info('end load')
+        predict_proba = model.predict_proba(data)[:, 1]
+        predict = numpy.where(predict_proba > 0.9, 1, 0)
         logger.info('end predict')
         ans = pandas.DataFrame(df['Id'])
         ans['Response'] = predict
+        ans['proba'] = predict_proba
 
         df_ans = df_ans.append(ans)
-
+        logger.info('chunk %s: %s'%(i, df_ans.shape[0]))
+        del df
+        gc.collect()
+        
     df_ans.to_csv('submit.csv', index=False)
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import logging
 import pandas
 import pickle
 import numpy
+import gc
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
@@ -70,3 +71,5 @@ if __name__ == '__main__':
         if (i + 1) % 10 == 0:
             pos_data.to_csv('pos_data_%s.csv' % (i + 1))
             pos_target.to_csv('pos_target_%s.csv' % (i + 1))
+        del train_data
+        gc.collect()
