@@ -51,9 +51,9 @@ if __name__ == '__main__':
             del train_data
             gc.collect()
             continue
-        # elif i == start:
-        #    model = LogisticRegression(n_jobs=-1)
-        #    model.fit(pos_data, pos_target)
+        #elif i == start:
+        #   model = LogisticRegression(n_jobs=-1)
+        #   model.fit(pos_data, pos_target)
 
         train_data = train_data.fillna(-1)
 
@@ -73,9 +73,9 @@ if __name__ == '__main__':
             pos_data = pos_data.append(neg_data.ix[idx, :])
 
         logger.info('%s: pos shape %s' % (i, pos_data.shape[0]))
-        model = LogisticRegression(n_jobs=-1)
-        #model = XGBClassifier(seed=0)
-        # model.set_params(**params)
+        #model = LogisticRegression(n_jobs=-1)
+        model = XGBClassifier(seed=0)
+        model.set_params(**params)
         model.fit(pos_data, pos_target)
 
         score = roc_auc_score(pos_target, model.predict_proba(pos_data)[:, 1])

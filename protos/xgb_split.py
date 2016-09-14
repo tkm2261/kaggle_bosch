@@ -4,24 +4,20 @@ import logging
 import pandas
 import pickle
 import numpy
-import glob
-
 from xgboost import XGBClassifier
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import matthews_corrcoef
-
-from feature import LIST_FEATURE_COLUMN_NAME
+from sklearn.cross_validation import StratifiedKFold
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
-CV_DIR = os.path.join(APP_ROOT, 'cv_split')
+
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
-
-
-
+from feature import LIST_FEATURE_COLUMN_NAME
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
                     datefmt='%Y-%m-%d/%H:%M:%S',
@@ -59,29 +55,10 @@ def mcc_scoring(estimator, X, y):
     return max_score
 
 
-def get_cv_index():
-
-    list_cv = []
-    list_test_idx = [pandas.read_csv(path)['Id'].values
-                     for path in glob.glob(os.path.join(CV_DIR, '*csv'))]
-    for i in range(len(list_test_idx)):
-        list_train_idx = []
-        for j in range(len(list_test_idx)):
-            if i == j:
-                test_idx = list_test_idx[j]
-            else:
-                list_train_idx.append(list_test_idx[j])
-        list_cv.append((numpy.r_[list_train_idx], list_test_idx))
-
-    return list_cv
-        
 if __name__ == '__main__':
     logger.info('load start')
-    # train_all_data = pandas.read_csv(TRAIN_DATA)
-    # train_all_data = train_pos_data.fillna(-1)
-    
     train_data = pandas.read_csv('pos_data_170.csv.gz', index_col=0)
-    train_data = train_data.fillna(0)
+    train_data = train_data.fillna(-1)
     logger.info('load end')
     logger.info('shape %s %s' % train_data.shape)
 
@@ -93,8 +70,46 @@ if __name__ == '__main__':
     logger.info('pos num: %s, pos rate: %s'%(sum(target), float(sum(target)) / target.shape[0]))
     
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
-              'max_depth': 5, 'min_child_weight': 0.01}
-    model = XGBClassifier(seed=0)
+              'max_depth': 5, 'min_child_weight': 0.01, 'n_estimators': 200,
+              'scale_pos_weight': 10}
+    list_estimator =[]
+    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
+
+    for train_idx, test_idx in list(cv)[:1]:
+        ans = []
+        insample_ans = []
+        for i in list(range(4)) + ['']:
+            cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s'%i in col]
+            model = XGBClassifier(seed=0)
+            model.set_params(**params)
+            model.fit(data[cols].values[train_idx], target[train_idx])
+            list_estimator.append(model)
+            ans.append(model.predict_proba(data[cols].values[test_idx])[:, 1])
+            insample_ans.append(model.predict_proba(data[cols].values[train_idx])[:, 1])            
+        ans = numpy.array(ans).T
+        insample_ans = numpy.array(insample_ans).T
+        #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+        model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc')
+        #model = XGBClassifier(seed=0)
+        #model.set_params(**params)
+        model.fit(ans, target[test_idx])
+        pred = model.predict_proba(ans)[:, 1] # ans.max(axis=1)
+        score = roc_auc_score(target[test_idx], pred)
+        logger.info('INSAMPLE score: %s' % score)
+        pred = model.predict_proba(insample_ans)[:, 1] # ans.max(axis=1)
+        score = roc_auc_score(target[train_idx], pred)
+        logger.info('INSAMPLE train score: %s' % score)
+        
+        list_estimator.append(model)
+
+    for i, ii in enumerate(list(range(4)) + ['']):
+        cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s'%ii in col]
+        model = XGBClassifier(seed=0)
+        model.set_params(**params)
+        model.fit(data[cols].values, target)
+        list_estimator[i] = model 
+
+
     """
     params = {'max_depth': [3, 5, 10],
               'learning_rate': [0.01, 0.1, 1],
@@ -102,7 +117,7 @@ if __name__ == '__main__':
               'subsample': [0.1, 0.5, 1],
               'colsample_bytree': [0.3, 0.5, 1],
     }
-    """
+
     params = {'max_depth': [3],
               'learning_rate': [0.1],
               'min_child_weight': [0.01],
@@ -122,22 +137,12 @@ if __name__ == '__main__':
     cv.fit(data, target)
     logger.info('best param: %s'%cv.best_params_)
     logger.info('best score: %s'%cv.best_score_)
+    
     model.set_params(**cv.best_params_)
+    model.fit(data, target)
 
-
-    """
-    for train_idx, test_idx in get_cv_index():
-        idx = train_data['Id'].isin(train_idx)
-        train_data = data[idx]
-        train_target = target[idx]
-        model.fit(data, target)
-        test_idx = train_data['Id'].isin(test_idx)
-        test_data = train_all_data[test_idx, LIST_FEATURE_COLUMN_NAME]
-        test_target = train_all_data[test_idx, TARGET_COLUMN_NAME]
-        mcc_scoring(model, test_data, test_target)
-    """
     score = roc_auc_score(target, model.predict_proba(data)[:, 1])
     logger.info('INSAMPLE score: %s' % score)
-    
-    with open('xgb_model.pkl', 'wb') as f:
-        pickle.dump(model, f, -1)
+    """    
+    with open('list_xgb_model.pkl', 'wb') as f:
+        pickle.dump(list_estimator, f, -1)
