@@ -7,7 +7,7 @@ import logging
 import numpy
 import gc
 
-from feature import LIST_FEATURE_COLUMN_NAME
+from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -27,19 +27,24 @@ def main():
     logger.info('start load')
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
-
+    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
     all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=100000)
     logger.info('end load')
 
     df_ans = pandas.DataFrame()
     for i, df in enumerate(all_df):
         df = df.fillna(-1)
-        data = df[LIST_FEATURE_COLUMN_NAME]
+        data = df[feature_column]
         pred = []
+        cnt = 0
         for j, jj in enumerate(list(range(4)) + ['']):
-            cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s'%jj in col]
-            model = list_model[j]
+            cols = [col for col in feature_column if 'L%s' % jj in col]
+            model = list_model[cnt]
             pred.append(model.predict_proba(data[cols].values)[:, 1])
+            cnt += 1
+            model = list_model[cnt]
+            pred.append(model.predict_proba(data[cols].values)[:, 1])
+            cnt += 1
 
         pred = numpy.array(pred).T
         predict_proba = list_model[-1].predict_proba(pred)[:, 1]
@@ -52,10 +57,10 @@ def main():
         ans['proba'] = predict_proba
 
         df_ans = df_ans.append(ans)
-        logger.info('chunk %s: %s'%(i, df_ans.shape[0]))
+        logger.info('chunk %s: %s' % (i, df_ans.shape[0]))
         del df
         gc.collect()
-        
+
     df_ans.to_csv('submit.csv', index=False)
 
 if __name__ == '__main__':
