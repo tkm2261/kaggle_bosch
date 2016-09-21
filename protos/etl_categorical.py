@@ -17,6 +17,7 @@ CAT_TEST_DATA = os.path.join(DATA_DIR, 'test_categorical2.csv.gz')
 
 NUM_TRAIN_DATA = os.path.join(DATA_DIR, 'train_numeric.csv.gz')
 
+from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -45,6 +46,14 @@ class ChiExtractor:
         logger.info('end encoding')
         list_columns = []
 
+        logger.info('start chi2 test')
+        chi_socre, p_val = chi2(enc_data, target)
+        logger.info('end chi2 test')
+        selected_idx = numpy.argsort(chi_socre)[::-1][:self.n_feature]
+
+        logger.info('p val: %s ~ %s' % (p_val[selected_idx][0], p_val[selected_idx][-1]))
+        enc_data = enc_data[:, selected_idx].todense()
+
         logger.info('start make colname')
         for i, ptr in enumerate(self.enc.feature_indices_[:-1]):
             col_name = pd_data.columns[i]
@@ -53,14 +62,6 @@ class ChiExtractor:
                 list_columns.append(col_new_name)
         list_columns = numpy.array(list_columns)
         logger.info('end make colname')
-
-        logger.info('start chi2 test')
-        chi_socre, p_val = chi2(enc_data, target)
-        logger.info('end chi2 test')
-        selected_idx = numpy.argsort(chi_socre)[::-1][:self.n_feature]
-
-        logger.info('p val: %s ~ %s' % (p_val[selected_idx][0], p_val[selected_idx][-1]))
-        enc_data = enc_data[:, selected_idx].todense()
 
         self.selected_idx = selected_idx
         self.chi_socre = chi_socre
@@ -101,9 +102,14 @@ if __name__ == '__main__':
     logger.info('load data 1')
 
     pd_data = None
-
     aaa = pandas.read_csv(CAT_TRAIN_DATA, compression='gzip', chunksize=100000, dtype=numpy.unicode)
     for i, a in enumerate(aaa):
+        a = a[[col for col in a.columns.values if col not in LIST_DUPLICATE_COL_NAME]]
+        a.fillna(0, inplace=True)
+        a = a.astype(numpy.int)
+        a_values = a.values
+        a = pandas.DataFrame(numpy.where(a_values < 0, 0, a_values), columns=a.columns, index=a.index)
+
         if pd_data is None:
             pd_data = a
         else:
@@ -114,7 +120,6 @@ if __name__ == '__main__':
     logger.info('load data 2')
     #pd_data = pd_data.apply(lambda x: int(x[1:]))
     logger.info('load data 3')
-    pd_data = pd_data.fillna(0)
 
     id_col = pd_data['Id']
     pd_data = pd_data.ix[:, 1:]

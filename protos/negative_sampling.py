@@ -37,27 +37,29 @@ if __name__ == '__main__':
     pos_data = train_pos_data[LIST_FEATURE_COLUMN_NAME]
 
     start = 0
-    if 0:
-        pos_data = pandas.read_csv('pos_data_%s.csv.gz' % (start), index_col=0)
-        pos_target = pandas.read_csv('pos_target_%s.csv.gz' % (start), header=None, index_col=0)[1]
+    if 1:
+        pos_data = pandas.read_csv('pos_data_%s.csv.gz' % (170), index_col=0)
+        pos_target = pandas.read_csv('pos_target_%s.csv.gz' % (170), header=None, index_col=0)[1]
 
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.5,
               'max_depth': 5, 'min_child_weight': 0.01}
-
-    model = None
+    #model = LogisticRegression(n_jobs=-1)
+    model = XGBClassifier(seed=0)
+    model.set_params(**params)
+    model.fit(pos_data, pos_target)
 
     for i, train_data in enumerate(list_train_data):
         if i < start:
             del train_data
             gc.collect()
             continue
-        #elif i == start:
+        # elif i == start:
         #   model = LogisticRegression(n_jobs=-1)
         #   model.fit(pos_data, pos_target)
 
         train_data = train_data.fillna(-1)
 
-        if i == 0:
+        if 0:  # i == 0:
             pos_target = pos_target.append(train_data[TARGET_COLUMN_NAME])
             pos_data = pos_data.append(train_data[LIST_FEATURE_COLUMN_NAME])
         else:
@@ -73,16 +75,12 @@ if __name__ == '__main__':
             pos_data = pos_data.append(neg_data.ix[idx, :])
 
         logger.info('%s: pos shape %s' % (i, pos_data.shape[0]))
-        #model = LogisticRegression(n_jobs=-1)
-        model = XGBClassifier(seed=0)
-        model.set_params(**params)
-        model.fit(pos_data, pos_target)
 
         score = roc_auc_score(pos_target, model.predict_proba(pos_data)[:, 1])
         logger.info('INSAMPLE score: %s' % score)
 
         if (i + 1) % 10 == 0:
-            pos_data.to_csv('pos_data_%s.csv' % (i + 1))
-            pos_target.to_csv('pos_target_%s.csv' % (i + 1))
+            pos_data.to_csv('pos_data_170_%s.csv' % (i + 1))
+            pos_target.to_csv('pos_target_170_%s.csv' % (i + 1))
         del train_data
         gc.collect()
