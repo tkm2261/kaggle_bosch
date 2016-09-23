@@ -33,13 +33,7 @@ def mcc(y_true, y_pred):
     true_neg = sum(1. for i in range(n) if y_true[i] == 0 and y_pred[i] == 0)
     false_pos = sum(1. for i in range(n) if y_true[i] == 0 and y_pred[i] == 1)
     false_neg = sum(1. for i in range(n) if y_true[i] == 1 and y_pred[i] == 0)
-    """
-    s = (true_pos + false_neg) / n
-    p = (true_pos + false_pos) / n
 
-    a = true_pos / n - s * p
-    b = numpy.sqrt(s * p * (1 - s) * (1 - p))
-    """
     a = true_pos * true_neg - false_pos * false_neg
     b = (true_pos + false_pos) * (true_pos + false_neg) * (true_neg + false_pos) * (true_neg + false_neg)
     return a / numpy.sqrt(b)
@@ -80,23 +74,18 @@ def min_date(row):
         return row
 
 
-def min_date2(row):
-    try:
-        return row - numpy.mean(row)
-    except ValueError:
-        return row
-
-
 if __name__ == '__main__':
     logger.info('load start')
-    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
+    feature_column = [
+        col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
     train_data = pandas.read_csv('pos_data_170.csv.gz', index_col=0).reset_index(drop=True)
+    #train_data = pandas.read_csv(TRAIN_DATA, usecols=feature_column + [TARGET_COLUMN_NAME])
     train_data = train_data.fillna(-1)
     logger.info('load end')
 
     date_cols = [col for col in feature_column if 'D' in col]
 
-    train_data[date_cols] = train_data[date_cols].apply(min_date2, axis=1)
+    train_data[date_cols] = train_data[date_cols].apply(min_date, axis=1)
 
     logger.info('date end')
 
@@ -110,6 +99,7 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % train_data.shape)
 
     target = pandas.read_csv('pos_target_170.csv.gz', header=None).ix[:, 1].values
+    #target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column]
 
     pos_rate = float(sum(target)) / target.shape[0]
@@ -169,8 +159,8 @@ if __name__ == '__main__':
 
         list_estimator.append(model)
 
-    #pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
-    #pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
+    #pandas.DataFrame(all_ans).to_csv('stack_1_data_1_150.csv', index=False)
+    #pandas.DataFrame(all_target).to_csv('stack_1_target_1_150.csv', index=False)
 
     idx = 0
 
@@ -194,32 +184,6 @@ if __name__ == '__main__':
               'subsample': [0.1, 0.5, 1],
               'colsample_bytree': [0.3, 0.5, 1],
     }
-
-    params = {'max_depth': [3],
-              'learning_rate': [0.1],
-              'min_child_weight': [0.01],
-              'subsample': [1],
-              'colsample_bytree': [0.3],
-              'n_estimators': [200],
-              }
-
-    cv = GridSearchCV(model,
-                      params,
-                      scoring='roc_auc',
-                      n_jobs=1,
-                      refit=False,
-                      verbose=10
-                      # scoring=mcc_scoring,
-    )
-    cv.fit(data, target)
-    logger.info('best param: %s'%cv.best_params_)
-    logger.info('best score: %s'%cv.best_score_)
-
-    model.set_params(**cv.best_params_)
-    model.fit(data, target)
-
-    score = roc_auc_score(target, model.predict_proba(data)[:, 1])
-    logger.info('INSAMPLE score: %s' % score)
     """
     with open('list_xgb_model.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)

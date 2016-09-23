@@ -62,6 +62,13 @@ def min_date(row):
         return row
 
 
+def min_date2(row):
+    try:
+        return row - numpy.mean(row)
+    except ValueError:
+        return row
+
+
 def main():
     logger.info('start load')
     with open('list_xgb_model.pkl', 'rb') as f:
@@ -70,6 +77,7 @@ def main():
     with open('stack_model_1.pkl', 'rb') as f:
         fin_model = pickle.load(f)
     feature_column = [col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
+
     date_cols = [col for col in feature_column if 'D' in col]
     #all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=100000, usecols=feature_column + ['Id'])
 
@@ -103,7 +111,7 @@ def main():
             cnt += 1
 
         pred = numpy.array(pred).T
-        predict_proba = fin_model.predict_proba(pred)[:, 1]
+        predict_proba = list_model[-1].predict_proba(pred)[:, 1]
         logger.info('end load')
 
         predict = numpy.where(predict_proba > 0.6, 1, 0)
