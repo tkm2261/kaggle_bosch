@@ -56,9 +56,11 @@ def mcc_scoring2(y_pred_prb, y):
     for thresh in list_thresh:
         y_pred = numpy.where(y_pred_prb >= thresh, 1, 0)
         score = mcc(y, y_pred)
+        logger.debug('thresh: %s, score: %s' % (thresh, score))
         if score > max_score:
             max_score = score
             idx = thresh
+
     return idx, max_score
 
 
@@ -93,9 +95,8 @@ def predict(_df, list_model, _feature_column, date_cols):
         cnt += 1
 
     pred = numpy.array(pred).T
-    predict_proba = list_model[-1].predict_proba(pred)[:, 1]
 
-    return predict_proba
+    return pred
 
 
 def predict2(_df, list_model, _feature_column, date_cols):
@@ -114,25 +115,16 @@ def predict2(_df, list_model, _feature_column, date_cols):
     predict_proba = model.predict_proba(data[cols])[:, 1]
     return predict_proba
 
-if __name__ == '__main__':
+
+def predict_all():
     logger.info('load start')
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
-    train_pos_data = pandas.read_csv(TRAIN_POSITIVE_DATA)
-    train_pos_data = train_pos_data.fillna(-1)
     list_train_data = pandas.read_csv(TRAIN_DATA, chunksize=100000)
 
     logger.info('load end')
-    logger.info('pos_data shape %s %s' % train_pos_data.shape)
-
-    pos_target = train_pos_data[TARGET_COLUMN_NAME]
-    pos_data = train_pos_data[LIST_FEATURE_COLUMN_NAME]
-
-    pos_data = pandas.read_csv('pos_data_%s.csv.gz' % (170), index_col=0).fillna(-1)
-    pos_target = pandas.read_csv('pos_target_%s.csv.gz' % (170), header=None, index_col=0)[1]
-    original_col = pos_data.columns.values
-
+    ans_data_all = None
     feature_column = [col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
     date_cols = [col for col in feature_column if 'D' in col]
 
@@ -143,20 +135,38 @@ if __name__ == '__main__':
         target = train_data[TARGET_COLUMN_NAME]
         data = train_data[LIST_FEATURE_COLUMN_NAME]
 
-        pred = predict2(data, list_model, feature_column, date_cols)  # model.predict_proba(neg_data)[:, 1]
-        thresh, score = mcc_scoring2(pred, target.values)
-        idx = target.values != pred
-        pos_target = pos_target.append(target.ix[idx])
-        pos_data = pos_data.append(data.ix[idx, original_col])
+        pred = predict(data, list_model, feature_column, date_cols)  # model.predict_proba(neg_data)[:, 1]
+        ans_data = pandas.DataFrame()
+        ans_data['Id'] = train_data['Id']
+        ans_data[TARGET_COLUMN_NAME] = train_data[TARGET_COLUMN_NAME]
+        for i in range(pred.shape[1]):
+            ans_data['a%s' % i] = pred[:, i]
+        if ans_data_all is None:
+            ans_data_all = ans_data
+        else:
+            ans_data_all = pandas.concat([ans_data_all, ans_data])
+        logger.info('ans shape %s %s' % ans_data_all.shape)
 
-        logger.info('%s: pos shape %s' % (i, pos_data.shape[0]))
-        pred = predict2(pos_data, list_model, feature_column, date_cols)
-        score = roc_auc_score(pos_target, pred)
-        thresh, mcc_score = mcc_scoring2(pred, target.values)
-        logger.info('INSAMPLE score: %s, thresh: %s, mcc_score: %s' % (score, thresh, mcc_score))
+    ans_data_all.to_csv('ans_all_train.csv', index=False)
 
-        if (i + 1) % 50 == 0:
-            pos_data.to_csv('pos_data_170_%s.csv' % (i + 1))
-            pos_target.to_csv('pos_target_170_%s.csv' % (i + 1))
-        del train_data
-        gc.collect()
+
+def select():
+    df = pandas.read_csv('ans_all_train.csv')
+
+    df_new = pandas.DataFrame()
+    df_new[TARGET_COLUMN_NAME] = df[TARGET_COLUMN_NAME]
+    df_new['Id'] = df['Id']
+    df_new['score'] = df[['a2', 'a6', 'a8']].mean(axis=1).values
+    df_new = df_new.sort('score')
+    df_new['cum'] = df_new[TARGET_COLUMN_NAME].cumsum()
+
+    aaa = pandas.Series(df_new[df_new['cum'] > 0]['Id'])
+    aaa.sort()
+    aaa.to_csv('../data/sampling_id.csv', index=False)
+    # for i in range(10):
+    #    print(i, mcc_scoring2(df['a%s' % i].values, df[TARGET_COLUMN_NAME].values))
+    #print(mcc_scoring2(df[['a2', 'a6', 'a8']].mean(axis=1).values, df[TARGET_COLUMN_NAME].values))
+    #df_new.to_csv('aaa.csv', index=False)
+
+if __name__ == '__main__':
+    select()

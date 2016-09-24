@@ -57,21 +57,31 @@ def mcc_scoring(estimator, X, y):
     return max_score
 
 
+def min_date(row):
+    try:
+        return row - min(ele for ele in row if ele > 0)
+    except ValueError:
+        return row
+
+
+def min_date2(row):
+    try:
+        return row - numpy.mean(row)
+    except ValueError:
+        return row
+
+
 if __name__ == '__main__':
     logger.info('load start')
-    train_data = pandas.read_csv('pos_data_170.csv.gz', index_col=0)
+    train_data = pandas.read_csv('pos_data_170_150.csv.gz', index_col=0).reset_index(drop=True)
     train_data = train_data.fillna(-1)
     logger.info('load end')
     date_cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'D' in col]
 
     feature_column = [col for col in LIST_FEATURE_COLUMN_NAME if col not in LIST_DUPLICATE_COL_NAME]
 
-    def min_date(row):
-        try:
-            return row - min(ele for ele in row if ele > 0)
-        except ValueError:
-            return row
     train_data[date_cols] = train_data[date_cols].apply(min_date, axis=1)
+
     logger.info('date end')
     for i in range(4):
         cols = [col for col in date_cols if 'L%s' % i in col]
@@ -82,15 +92,16 @@ if __name__ == '__main__':
     logger.info('load end')
     logger.info('shape %s %s' % train_data.shape)
 
-    target = pandas.read_csv('pos_target_170.csv.gz', header=None).ix[:, 1].values
+    target = pandas.read_csv('pos_target_170_150.csv.gz', header=None).ix[:, 1].values
     data = train_data[feature_column]
 
+    pos_rate = float(sum(target)) / target.shape[0]
     logger.info('shape %s %s' % data.shape)
-    logger.info('pos num: %s, pos rate: %s' % (sum(target), float(sum(target)) / target.shape[0]))
+    logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
               'max_depth': 5, 'min_child_weight': 0.01, 'n_estimators': 200,
-              'scale_pos_weight': 10}
+              'scale_pos_weight': 1. / pos_rate}
 
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
 
@@ -105,42 +116,42 @@ if __name__ == '__main__':
             cols = [col for col in feature_column if 'L%s' % i in col]
             model = XGBClassifier(seed=0)
             model.set_params(**params)
-            model.fit(data[cols].values[train_idx], target[train_idx])
+            model.fit(data.ix[train_idx, cols], target[train_idx])
             list_estimator.append(model)
-            ans.append(model.predict_proba(data[cols].values[test_idx])[:, 1])
-            insample_ans.append(model.predict_proba(data[cols].values[train_idx])[:, 1])
+            ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+            insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
             cols2 = [col for col in cols if 'D' in col]
             model = XGBClassifier(seed=0)
             model.set_params(**params)
-            model.fit(data[cols2].values[train_idx], target[train_idx])
+            model.fit(data.ix[train_idx, cols2], target[train_idx])
             list_estimator.append(model)
-            ans.append(model.predict_proba(data[cols2].values[test_idx])[:, 1])
-            insample_ans.append(model.predict_proba(data[cols2].values[train_idx])[:, 1])
+            ans.append(model.predict_proba(data.ix[test_idx, cols2])[:, 1])
+            insample_ans.append(model.predict_proba(data.ix[train_idx, cols2])[:, 1])
 
             cols3 = [col for col in cols if 'F' in col]
             model = XGBClassifier(seed=0)
             model.set_params(**params)
-            model.fit(data[cols3].values[train_idx], target[train_idx])
+            model.fit(data.ix[train_idx, cols3], target[train_idx])
             list_estimator.append(model)
-            ans.append(model.predict_proba(data[cols3].values[test_idx])[:, 1])
-            insample_ans.append(model.predict_proba(data[cols3].values[train_idx])[:, 1])
+            ans.append(model.predict_proba(data.ix[test_idx, cols3])[:, 1])
+            insample_ans.append(model.predict_proba(data.ix[train_idx, cols3])[:, 1])
 
         ans = numpy.array(ans).T
         insample_ans = numpy.array(insample_ans).T
         if all_ans is None:
             all_ans = ans
-            all_target = target[train_idx]
+            all_target = target[test_idx]
         else:
             all_ans = numpy.r_[all_ans, ans]
-            all_target = numpy.r_[all_target, target[train_idx]]
+            all_target = numpy.r_[all_target, target[test_idx]]
 
-        #model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc', random_state=0)
+        # model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc', random_state=0)
         model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-        #model = XGBClassifier(seed=0)
+        # model = XGBClassifier(seed=0)
         # model.set_params(**params)
 
-        #model.fit(numpy.r_[ans, insample_ans], numpy.r_[target[test_idx], target[train_idx]])
+        # model.fit(numpy.r_[ans, insample_ans], numpy.r_[target[test_idx], target[train_idx]])
         model.fit(ans, target[test_idx])
         pred = model.predict_proba(ans)[:, 1]  # ans.max(axis=1)
         score = roc_auc_score(target[test_idx], pred)
@@ -151,64 +162,30 @@ if __name__ == '__main__':
 
         # list_estimator.append(model)
 
-    pandas.DataFrame(all_ans).to_csv('stack_1_data.csv', index=False)
-    pandas.DataFrame(all_target).to_csv('stack_1_target.csv', index=False)
+    pandas.DataFrame(all_ans).to_csv('stack_1_data_2.csv', index=False)
+    pandas.DataFrame(all_target).to_csv('stack_1_target_2.csv', index=False)
     idx = 0
     for i in list(range(4)) + ['']:
         cols = [col for col in feature_column if 'L%s' % i in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
-        model.fit(data[cols].values, target)
+        model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1
 
         cols2 = [col for col in cols if 'D' in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
-        model.fit(data[cols2].values, target)
+        model.fit(data[cols2], target)
         list_estimator[idx] = model
         idx += 1
 
         cols3 = [col for col in cols if 'F' in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
-        model.fit(data[cols3].values, target)
+        model.fit(data[cols3], target)
         list_estimator[idx] = model
         idx += 1
 
-    """
-    params = {'max_depth': [3, 5, 10],
-              'learning_rate': [0.01, 0.1, 1],
-              'min_child_weight': [0.01, 0.1, 1],
-              'subsample': [0.1, 0.5, 1],
-              'colsample_bytree': [0.3, 0.5, 1],
-    }
-
-    params = {'max_depth': [3],
-              'learning_rate': [0.1],
-              'min_child_weight': [0.01],
-              'subsample': [1],
-              'colsample_bytree': [0.3],
-              'n_estimators': [200],
-              }
-    
-    cv = GridSearchCV(model,
-                      params,
-                      scoring='roc_auc',
-                      n_jobs=1,
-                      refit=False,
-                      verbose=10
-                      #scoring=mcc_scoring,
-    )
-    cv.fit(data, target)
-    logger.info('best param: %s'%cv.best_params_)
-    logger.info('best score: %s'%cv.best_score_)
-    
-    model.set_params(**cv.best_params_)
-    model.fit(data, target)
-
-    score = roc_auc_score(target, model.predict_proba(data)[:, 1])
-    logger.info('INSAMPLE score: %s' % score)
-    """
     with open('list_xgb_model2.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)

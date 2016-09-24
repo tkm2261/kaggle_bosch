@@ -76,7 +76,7 @@ def mcc_scoring2(y_pred_prb, y):
 if __name__ == '__main__':
     logger.info('load start')
     target = pandas.read_csv('stack_1_target.csv')['0'].values
-    data = pandas.read_csv('stack_1_data.csv').values
+    data = pandas.read_csv('stack_1_data_2.csv').values
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)
@@ -93,8 +93,8 @@ if __name__ == '__main__':
                   'subsample': [1],
                   'colsample_bytree': [0.3],
                   'scale_pos_weight': [10]}
-    _all_params = {'C': [10**i for i in range(-3, 2)],
-                   'penalty': ['l2']}
+    all_params = {'C': [10**i for i in range(-3, 2)],
+                  'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         y_true = []
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
-            #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
             model.fit(data[train_idx], target[train_idx])
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     logger.info('total max score: %s' % max_score)
     model = XGBClassifier(seed=0)
-    #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    model = LogisticRegression(n_jobs=-1, class_weight='balanced')
     model.set_params(**best_param)
     model.fit(data, target)
 

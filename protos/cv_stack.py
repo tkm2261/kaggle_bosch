@@ -93,8 +93,8 @@ if __name__ == '__main__':
                   'subsample': [1],
                   'colsample_bytree': [0.3],
                   'scale_pos_weight': [5, 10]}
-    _all_params = {'C': [10**i for i in range(-3, 2)],
-                   'penalty': ['l2']}
+    all_params = {'C': [10**i for i in range(-3, 2)],
+                  'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         y_true = []
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
-            #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
             model.fit(data[train_idx], target[train_idx])
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -126,7 +126,7 @@ if __name__ == '__main__':
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
     model = XGBClassifier(seed=0)
-    #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    model = LogisticRegression(n_jobs=-1, class_weight='balanced')
     model.set_params(**best_param)
     model.fit(data, target)
 
