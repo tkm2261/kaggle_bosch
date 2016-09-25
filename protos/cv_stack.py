@@ -58,7 +58,10 @@ def mcc_scoring(estimator, X, y):
             idx = thresh
     return max_score
 
+from numba.decorators import jit
 
+
+@jit
 def mcc_scoring2(y_pred_prb, y):
     list_thresh = numpy.arange(1, 100) / 100
     max_score = -1
@@ -66,7 +69,6 @@ def mcc_scoring2(y_pred_prb, y):
     for thresh in list_thresh:
         y_pred = numpy.where(y_pred_prb >= thresh, 1, 0)
         score = mcc(y, y_pred)
-        logger.debug('thresh: %s, score: %s' % (thresh, score))
         if score > max_score:
             max_score = score
             idx = thresh
@@ -87,14 +89,14 @@ if __name__ == '__main__':
               'scale_pos_weight': 10}
 
     all_params = {'max_depth': [3, 5, 10],
-                  'n_estimators': [100],
+                  'n_estimators': [10, 100, 300],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
-                  'colsample_bytree': [0.3],
-                  'scale_pos_weight': [5, 10]}
-    all_params = {'C': [10**i for i in range(-3, 2)],
-                  'penalty': ['l2']}
+                  'colsample_bytree': [1],
+                  'scale_pos_weight': [1, 10, 100]}
+    _all_params = {'C': [10**i for i in range(-3, 2)],
+                   'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
@@ -106,7 +108,7 @@ if __name__ == '__main__':
         y_true = []
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
-            model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
             model.fit(data[train_idx], target[train_idx])
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -126,7 +128,7 @@ if __name__ == '__main__':
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
     model = XGBClassifier(seed=0)
-    model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
     model.set_params(**best_param)
     model.fit(data, target)
 

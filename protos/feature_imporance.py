@@ -28,19 +28,8 @@ def main():
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
-    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME
-                      if col not in LIST_DUPLIDATE_CAT]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_DUPLIDATE_DATE]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_SAME_COL]
-    date_cols = [col for col in feature_column if 'D' in col]
-    for i in range(4):
-        feature_column += ['part_L%s' % i]
-    for i in range(4):
-        cols = [col for col in date_cols if 'L%s' % i in col]
-        col_names = ['L%s_D_MIN' % i, 'L%s_D_AVG' % i, 'L%s_D_MAX' % i, 'L%s_D_DIFF' % i]
-        feature_column += col_names
+    from train_feature_1 import LIST_TRAIN_COL
+    feature_column = LIST_TRAIN_COL
 
     logger.info('end load')
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))

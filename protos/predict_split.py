@@ -6,8 +6,9 @@ import pandas
 import logging
 import numpy
 import gc
-
+import glob
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
+from feature_orig import LIST_COLUMN_NUM
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -89,48 +90,16 @@ def main():
         fin_model = pickle.load(f)
 
     from train_feature_1 import LIST_TRAIN_COL
-    _feature_column = LIST_TRAIN_COL
+    feature_column = LIST_TRAIN_COL
 
-    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME
-                      if col not in LIST_DUPLIDATE_CAT]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_DUPLIDATE_DATE]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_SAME_COL]
-    date_cols = [col for col in feature_column if 'D' in col]
-    for i in range(4):
-        feature_column += ['part_L%s' % i]
-    for i in range(4):
-        cols = [col for col in date_cols if 'L%s' % i in col]
-        col_names = ['L%s_D_MIN' % i, 'L%s_D_AVG' % i, 'L%s_D_MAX' % i, 'L%s_D_DIFF' % i]
-        feature_column += col_names
-
-    logger.info('featuer error: %s' % ([col for col in _feature_column if col not in feature_column]))
-    logger.info('end load')
-    logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_ans = pandas.DataFrame()
     #all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=10000)
-
     # for i, df in enumerate(all_df):
-    for i in range(12):
-        df = pandas.read_hdf('predict.h5', key=str(i))
-        df = df.fillna(-1)
-        df[[col + "_DUR" for col in date_cols]] = df[date_cols].apply(min_date, axis=1)
-        logger.info('date end')
-        for i in range(4):
-            cols = [col for col in date_cols if 'L%s' % i in col]
-            col_names = ['L%s_D_MIN' % i, 'L%s_D_AVG' % i, 'L%s_D_MAX' % i, 'L%s_D_DIFF' % i]
-            #df[col_names[0]] = df[cols].min(axis=1)
-            #df[col_names[1]] = df[cols].mean(axis=1)
-            #df[col_names[2]] = df[cols].max(axis=1)
-            #df[col_names[3]] = df[col_names[2]] - df[col_names[0]]
-            df[col_names] = df[cols].apply(lambda row: date_stats(row, col_names), axis=1)
-        logger.info('date2 end')
-        for i in range(4):
-            cols = [col for col in date_cols if 'L%s' % i in col]
-            df['part_L%s' % i] = df[cols].apply(lambda row: 1 if max(row) < 0 else 0, axis=1)
-        logger.info('part end')
-        data = df[feature_column]
+    # for i in range(12):
+    for i, path in enumerate(glob.glob(os.path.join(DATA_DIR, 'test_etl2/*'))):
+        #df = pandas.read_hdf('predict.h5', key=str(i))
+        df = pandas.read_csv(path)
+        data = df[feature_column].fillna(-10)
         pred = []
 
         cnt = 0
@@ -142,14 +111,17 @@ def main():
 
         pred = numpy.array(pred).T
         predict_proba = fin_model.predict_proba(pred)[:, 1]
+        predict_proba2 = pred.mean(axis=1)
         logger.info('end load')
 
-        predict = numpy.where(predict_proba > 0.6, 1, 0)
+        predict = numpy.where(predict_proba >= 0.68, 1, 0)
         logger.info('end predict')
         ans = pandas.DataFrame(df['Id'])
         ans['Response'] = predict
         ans['proba'] = predict_proba
-
+        ans['proba2'] = predict_proba2
+        for m in range(pred.shape[1]):
+            ans['m%s' % m] = pred[:, m]
         df_ans = df_ans.append(ans)
         logger.info('chunk %s: %s' % (i, df_ans.shape[0]))
         del df
