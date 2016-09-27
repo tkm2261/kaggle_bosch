@@ -96,14 +96,14 @@ def main():
     #all_df = pandas.read_csv(TEST_DATA, compression='gzip', chunksize=10000)
     # for i, df in enumerate(all_df):
     # for i in range(12):
-    for i, path in enumerate(glob.glob(os.path.join(DATA_DIR, 'test_etl2/*'))):
+    for i, path in enumerate(glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))):
         #df = pandas.read_hdf('predict.h5', key=str(i))
         df = pandas.read_csv(path)
         data = df[feature_column].fillna(-10)
         pred = []
 
         cnt = 0
-        for j, jj in enumerate([1, 3, '']):
+        for j, jj in enumerate([0, 1, 2, 3, '']):
             cols = [col for col in feature_column if 'L%s' % jj in col]
             model = list_model[cnt]
             pred.append(model.predict_proba(data[cols])[:, 1])

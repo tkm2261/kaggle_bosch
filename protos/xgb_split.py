@@ -20,6 +20,7 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_etl_sampling.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
 
+from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
 from feature_orig import LIST_COLUMN_NUM
 
@@ -98,8 +99,6 @@ if __name__ == '__main__':
 
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    from feature_0925 import LIST_COLUMN_ZERO
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
 
@@ -112,13 +111,13 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    all_params = {'max_depth': [10, 11, 12],
-                  'n_estimators': [100, 200],
+    all_params = {'max_depth': [10],
+                  'n_estimators': [300],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [10],
-                  'min_child_weight': [0.01, 0.1, 1],
-                  'subsample': [0.1, 0.5, 1],
-                  'colsample_bytree': [0.3, 0.5, 1],
+                  'min_child_weight': [0.01],
+                  'subsample': [1],
+                  'colsample_bytree': [0.3],
                   }
 
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
@@ -134,12 +133,12 @@ if __name__ == '__main__':
             list_estimator = []
             ans = []
             insample_ans = []
-            for i in [0, 1, 2, 3, '']:  # [1, 3, '']:
+            for i in [0, 1, 2, 3, '']:  # [1, 3, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
-                model.fit(data.ix[train_idx, cols], target[train_idx])
+                model.fit(data.ix[train_idx, cols], target[train_idx], eval_metric=evalmcc_xgb_min)
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
@@ -153,17 +152,18 @@ if __name__ == '__main__':
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
 
-            model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc', random_state=0)
+            # model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc', random_state=0)
             # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-            # model = XGBClassifier(seed=0)
+            model = XGBClassifier(seed=0)
             # model.set_params(**params)
 
             # model.fit(numpy.r_[ans, insample_ans], numpy.r_[target[test_idx], target[train_idx]])
             model.fit(ans, target[test_idx])
             pred = model.predict_proba(ans)[:, 1]  # ans.max(axis=1)
-            logger.info('pred thresh: %s, score: %s' % mcc_scoring2(pred, target[test_idx]))
+            logger.info('pred thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
             score = roc_auc_score(target[test_idx], ans.mean(axis=1))
-            logger.info('mean thresh: %s, score: %s' % mcc_scoring2(ans.mean(axis=1), target[test_idx]))
+            logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target[test_idx]))
+            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans[:, -1], target[test_idx]))
             logger.info('score: %s' % score)
             score = roc_auc_score(target[test_idx], pred)
             logger.info('INSAMPLE score: %s' % score)
@@ -177,12 +177,12 @@ if __name__ == '__main__':
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
 
     idx = 0
-    for i in [0, 1, 2, 3, '']:
+    for i in [0, 1, 2, 3, '']:  # [1, 3, '']:
         logger.info('model: %s' % i)
         cols = [col for col in feature_column if 'L%s' % i in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
-        model.fit(data[cols], target)
+        model.fit(data[cols], target, eval_metric=evalmcc_xgb_min)
         list_estimator[idx] = model
         idx += 1
 

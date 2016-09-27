@@ -17,6 +17,8 @@ DATA_DIR = os.path.join(APP_ROOT, 'data')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
+
+from utils import mcc_optimize
 from feature import LIST_FEATURE_COLUMN_NAME
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -87,14 +89,17 @@ if __name__ == '__main__':
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
               'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 100,
               'scale_pos_weight': 10}
+    # 2016-09-25/19:15:24 __main__ 106 [INFO][<module>] 13/27 param: {'colsample_bytree': 1, 'scale_pos_weight': 1, 'learning_rate': 0.1, 'subsample': 1, 'min_child_weight': 1, 'n_estimators': 100, 'max_depth': 5}
+    # 2016-09-25/19:47:43 __main__ 125 [INFO][<module>] thresh: 0.21, total
+    # score: 0.265192269117, max_score: 0.265192269117
 
-    all_params = {'max_depth': [3, 5, 10],
-                  'n_estimators': [10, 100, 300],
+    all_params = {'max_depth': [5],
+                  'n_estimators': [100],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
                   'colsample_bytree': [1],
-                  'scale_pos_weight': [1, 10, 100]}
+                  'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
@@ -110,8 +115,8 @@ if __name__ == '__main__':
             model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
-            model.fit(data[train_idx], target[train_idx])
-            pred_proba = model.predict_proba(data[test_idx])[:, 1]
+            #model.fit(data[train_idx], target[train_idx])
+            pred_proba = data[test_idx, -1]  # model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)
@@ -120,7 +125,7 @@ if __name__ == '__main__':
             list_score.append(score)
             #logger.info('    thresh: %s' % thresh)
         score = numpy.mean(list_score)
-        thresh, score = mcc_scoring2(pred_proba_all, y_true)
+        thresh, score = mcc_optimize(pred_proba_all, y_true)
         max_score = max(max_score, score)
         logger.info('thresh: %s, total score: %s, max_score: %s' % (thresh, score, max_score))
         if max_score == score:
