@@ -35,7 +35,7 @@ def main():
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_fi = pandas.DataFrame()
     df_fi['name'] = feature_column
-    for j, jj in enumerate([1, 3, '']):
+    for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         df_fi2 = pandas.DataFrame()
         df_fi2['name'] = cols

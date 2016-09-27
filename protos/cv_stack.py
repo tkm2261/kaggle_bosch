@@ -93,8 +93,8 @@ if __name__ == '__main__':
     # 2016-09-25/19:47:43 __main__ 125 [INFO][<module>] thresh: 0.21, total
     # score: 0.265192269117, max_score: 0.265192269117
 
-    all_params = {'max_depth': [5, 10],
-                  'n_estimators': [10, 100, 200],
+    all_params = {'max_depth': [5, 10, 15],
+                  'n_estimators': [100],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],

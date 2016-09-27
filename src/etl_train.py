@@ -16,7 +16,7 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
 from protos.feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE, LIST_SAME_COL
-from protos.feature_orig import LIST_COLUMN_NUM
+from protos.feature_orig import LIST_COLUMN_NUM, LIST_COLUMN_CAT
 from protos.feature_zero import LIST_COLUMN_CAT_ZERO, LIST_COLUMN_NUM_ZERO
 from protos.feature_0925 import LIST_COLUMN_ZERO
 
@@ -71,8 +71,12 @@ def etl(train_data, num, feature_column, date_cols):
         logger.info('line num sec %s end' % i)
         logger.info('size %s %s' % train_data.shape)
 
-    tmp_cols = [col for col in feature_column if col != 'hash']
-    train_data['hash'] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+    train_data['L_all_hash'] = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+
+    for i in list(range(4)) + ['']:
+        tmp_cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
+        train_data['L%s_hash'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+
     df = train_data[['Id', TARGET_COLUMN_NAME] +
                     feature_column]
 
@@ -118,7 +122,11 @@ if __name__ == '__main__':
 
     feature_column = [col for col in feature_column
                       if col not in LIST_COLUMN_ZERO]
-    feature_column.append('hash')
+    feature_column.append('L_all_hash')
+    for i in list(range(4)) + ['']:
+        feature_column.append('L%s_hash'%i)
+
+
     path = sys.argv[1]
     train_data_all = pandas.read_csv(path, chunksize=10000)
     num = 0
