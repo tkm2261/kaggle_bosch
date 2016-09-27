@@ -5,7 +5,7 @@ import pandas
 import pickle
 import numpy
 import glob
-
+from multiprocessing import Pool
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
@@ -91,12 +91,22 @@ def date_stats(row, col_names):
         r_max = row_na.max()
         return pandas.Series([r_min, r_mean, r_max, r_max - r_min], index=col_names)
 
+def read_csv(filename):
+    'converts a filename to a pandas dataframe'
+    return pandas.read_csv(filename)
+
 if __name__ == '__main__':
     logger.info('load start')
     # train_data = pandas.read_csv(TRAIN_DATA)
-    train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
-        os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
 
+    #train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
+    #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
+    p = Pool()
+    train_data = pandas.concat(p.map(read_csv, 
+                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
+                                 )).reset_index(drop=True)
+    p.close()
+    p.join()
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)

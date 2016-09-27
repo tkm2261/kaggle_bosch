@@ -70,9 +70,12 @@ def etl(train_data, num, feature_column, date_cols):
         train_data['L%s_S%s_NUM_AVG' % (line, i)] = tmp.mean(axis=1)
         logger.info('line num sec %s end' % i)
         logger.info('size %s %s' % train_data.shape)
+
+    tmp_cols = [col for col in feature_column if col != 'hash']
+    train_data['hash'] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
     df = train_data[['Id'] +
                     feature_column]
-    df['hash'] = df[feature_column].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+
     logger.info('size %s %s' % df.shape)
     df.to_csv('../data/test_etl/test_elt_%s.csv' % num, index=False)
 
