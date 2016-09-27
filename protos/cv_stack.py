@@ -87,19 +87,19 @@ if __name__ == '__main__':
     logger.info('pos num: %s, pos rate: %s' % (sum(target), float(sum(target)) / target.shape[0]))
 
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
-              'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 100,
+              'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 200,
               'scale_pos_weight': 10}
-    # 2016-09-25/19:15:24 __main__ 106 [INFO][<module>] 13/27 param: {'colsample_bytree': 1, 'scale_pos_weight': 1, 'learning_rate': 0.1, 'subsample': 1, 'min_child_weight': 1, 'n_estimators': 100, 'max_depth': 5}
-    # 2016-09-25/19:47:43 __main__ 125 [INFO][<module>] thresh: 0.21, total
-    # score: 0.265192269117, max_score: 0.265192269117
 
-    all_params = {'max_depth': [3],
+    #4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4} 
+    #2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh: 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521 
+
+    all_params = {'max_depth': [4],
                   'n_estimators': [100],
-                  'learning_rate': [0.01, 0.1, 1],
-                  'min_child_weight': [0.01, 0.1, 1],
-                  'subsample': [0.1, 0.5, 1],
-                  'colsample_bytree': [0.3, 0.5, 1],
-                  'scale_pos_weight': [1, 10]}
+                  'learning_rate': [0.1],
+                  'min_child_weight': [1],
+                  'subsample': [1],
+                  'colsample_bytree': [1],
+                  'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
@@ -116,8 +116,6 @@ if __name__ == '__main__':
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
             model.fit(data[train_idx], target[train_idx],
-                      eval_set=[(data[test_idx], target[test_idx])],
-                      early_stopping_rounds=50,
                       eval_metric=evalmcc_xgb_min,
                       verbose=False)
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -139,7 +137,9 @@ if __name__ == '__main__':
     model = XGBClassifier(seed=0)
     #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
     model.set_params(**best_param)
-    model.fit(data, target)
+    model.fit(data[train_idx], target[train_idx],
+              eval_metric=evalmcc_xgb_min,
+              verbose=False)
 
     with open('stack_model_1.pkl', 'wb') as f:
         pickle.dump(model, f, -1)
