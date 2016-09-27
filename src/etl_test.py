@@ -71,7 +71,9 @@ def etl(train_data, num, feature_column, date_cols):
         logger.info('line num sec %s end' % i)
         logger.info('size %s %s' % train_data.shape)
 
+    train_data['L_all_hash_cat'] = train_data[LIST_COLUMN_CAT].apply(lambda x: hash(''.join(map(str, x))), axis=1)
     train_data['L_all_hash'] = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+
 
     for i in list(range(4)) + ['']:
         tmp_cols = [col for col in LIST_COLUMN_CAT if 'L%s' % i in col]
@@ -125,6 +127,7 @@ if __name__ == '__main__':
     feature_column = [col for col in feature_column
                       if col not in LIST_COLUMN_ZERO]
     feature_column.append('L_all_hash')
+    feature_column.append('L_all_hash_cat')
     for i in list(range(4)) + ['']:
         feature_column.append('L%s_hash_cat'%i)
         feature_column.append('L%s_hash'%i)
