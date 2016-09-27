@@ -74,6 +74,8 @@ def etl(train_data, num, feature_column, date_cols):
     train_data['L_all_hash'] = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda x: hash(''.join(map(str, x))), axis=1)
 
     for i in list(range(4)) + ['']:
+        tmp_cols = [col for col in LIST_COLUMN_CAT if 'L%s' % i in col]
+        train_data['L%s_hash_cat'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
         tmp_cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
         train_data['L%s_hash'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
 
@@ -124,6 +126,7 @@ if __name__ == '__main__':
                       if col not in LIST_COLUMN_ZERO]
     feature_column.append('L_all_hash')
     for i in list(range(4)) + ['']:
+        feature_column.append('L%s_hash_cat'%i)
         feature_column.append('L%s_hash'%i)
 
 

@@ -148,7 +148,11 @@ if __name__ == '__main__':
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
-                model.fit(data.ix[train_idx, cols], target[train_idx], eval_metric=evalmcc_xgb_min)
+                model.fit(data.ix[train_idx, cols], target[train_idx],
+                          eval_set=[(data.ix[test_idx, cols], target[test_idx])],
+                          early_stopping_rounds=50,
+                          eval_metric=evalmcc_xgb_min,
+                          verbose=False)
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
