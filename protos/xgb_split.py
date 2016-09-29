@@ -32,65 +32,23 @@ logging.basicConfig(format=log_fmt,
 logger = logging.getLogger(__name__)
 
 
-def mcc(y_true, y_pred):
-    n = y_true.shape[0]
-    true_pos = sum(1. for i in range(n) if y_true[i] == 1 and y_pred[i] == 1)
-    true_neg = sum(1. for i in range(n) if y_true[i] == 0 and y_pred[i] == 0)
-    false_pos = sum(1. for i in range(n) if y_true[i] == 0 and y_pred[i] == 1)
-    false_neg = sum(1. for i in range(n) if y_true[i] == 1 and y_pred[i] == 0)
+def hash_groupby(df, feature_column):
 
-    a = true_pos * true_neg - false_pos * false_neg
-    b = (true_pos + false_pos) * (true_pos + false_neg) * (true_neg + false_pos) * (true_neg + false_neg)
-    return a / numpy.sqrt(b)
+    new_feature_column = list(feature_column)
+    for col in feature_column:
+        if 'hash' not in col:
+            continue
+        logger.info('hash col%s' % col)
+        tmp = df.groupby(col)[[TARGET_COLUMN_NAME]].sum()
+        #tmp_mean = tmp[TARGET_COLUMN_NAME].mean()
+        tmp[TARGET_COLUMN_NAME][tmp[TARGET_COLUMN_NAME] < 2] = 2
+        tmp.columns = [col + '_prob']
+        new_feature_column.append(col + '_prob')
+        df = pandas.merge(df, tmp, how='left', left_on=col, right_index=True)
 
+    df[[col for col in new_feature_column if 'hash' in col]].to_csv('hash_prob.csv', index=True)
+    return df, new_feature_column
 
-def mcc_scoring(estimator, X, y):
-
-    y_pred_prb = estimator.predict_proba(X)[:, 1]
-    list_thresh = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
-    max_score = -1
-    for thresh in list_thresh:
-        y_pred = numpy.where(y_pred_prb >= thresh, 1, 0)
-        score = mcc(y, y_pred)
-        logger.info('thresh: %s, score: %s' % (thresh, score))
-        if score > max_score:
-            max_score = score
-    return max_score
-
-from numba.decorators import jit
-
-
-@jit
-def mcc_scoring2(y_pred_prb, y):
-    list_thresh = numpy.arange(1, 100) / 100
-    max_score = -1
-    idx = None
-    for thresh in list_thresh:
-        y_pred = numpy.where(y_pred_prb >= thresh, 1, 0)
-        score = mcc(y, y_pred)
-        #logger.debug('thresh: %s, score: %s' % (thresh, score))
-        if score > max_score:
-            max_score = score
-            idx = thresh
-    return idx, max_score
-
-
-def min_date(row):
-    try:
-        return row - min(ele for ele in row if ele > 0)
-    except ValueError:
-        return row
-
-
-def date_stats(row, col_names):
-    row_na = row[row > 0]
-    if len(row_na) == 0:
-        return pandas.Series([-10, -10, -10, -10], index=col_names)
-    else:
-        r_min = row_na.min()
-        r_mean = row_na.mean()
-        r_max = row_na.max()
-        return pandas.Series([r_min, r_mean, r_max, r_max - r_min], index=col_names)
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
@@ -100,17 +58,19 @@ if __name__ == '__main__':
     logger.info('load start')
     # train_data = pandas.read_csv(TRAIN_DATA)
 
-    #train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
+    # train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
     #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
     p = Pool()
-    train_data = pandas.concat(p.map(read_csv, 
+    train_data = pandas.concat(p.map(read_csv,
                                      glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
-                                 )).reset_index(drop=True)
+                                     )).reset_index(drop=True)
     p.close()
     p.join()
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
+    train_data, feature_column = hash_groupby(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
@@ -124,11 +84,11 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    #2016-09-27/22:03:59 __main__ 141 [INFO][<module>] param: {'learning_rate': 0.1, 'scale_pos_weight': 10, 'max_depth': 10,
-    #                                     'min_child_weight': 1, 'colsample_bytree': 0.3, 'n_estimators': 300, 'subsample': 1} 
-    #2016-09-27/22:11:58 __main__ 179 [INFO][<module>] score: 0.719638635551 
-    #2016-09-27/22:19:54 __main__ 179 [INFO][<module>] score: 0.733182884206 
-    #2016-09-27/22:27:51 __main__ 179 [INFO][<module>] score: 0.722172677022 
+    # 2016-09-27/22:03:59 __main__ 141 [INFO][<module>] param: {'learning_rate': 0.1, 'scale_pos_weight': 10, 'max_depth': 10,
+    #                                     'min_child_weight': 1, 'colsample_bytree': 0.3, 'n_estimators': 300, 'subsample': 1}
+    # 2016-09-27/22:11:58 __main__ 179 [INFO][<module>] score: 0.719638635551
+    # 2016-09-27/22:19:54 __main__ 179 [INFO][<module>] score: 0.733182884206
+    # 2016-09-27/22:27:51 __main__ 179 [INFO][<module>] score: 0.722172677022
     all_params = {'max_depth': [10],
                   'n_estimators': [300],
                   'learning_rate': [0.1],
@@ -193,7 +153,7 @@ if __name__ == '__main__':
             pred = model.predict_proba(insample_ans)[:, 1]  # ans.max(axis=1)
             score = roc_auc_score(target[train_idx], pred)
             logger.info('INSAMPLE train score: %s' % score)
-            
+
             list_estimator.append(model)
 
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)

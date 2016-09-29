@@ -27,12 +27,25 @@ logging.basicConfig(format=log_fmt,
 logger = logging.getLogger(__name__)
 
 
+def hash_join(df):
+    mst = pandas.read_csv('hash_prob.csv')
+    for col in list(df.columns.values):
+        if 'hash' not in col:
+            continue
+        logger.info('hash col%s' % col)
+        tmp = mst.groupby(col)[[col + '_prob']].max()
+        df = df.merge(tmp, how='left', left_on=col, right_index=True, copy=False)
+        df[col + '_prob'] = df[col + '_prob'].fillna(2)
+
+    return df
+
+
 def main():
     logger.info('start load')
 
     pathes = glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
     p = Pool()
-    df_ans = pandas.concat(p.map(predict, pathes)).reset_index(drop=True)
+    df_ans = pandas.concat(map(predict, pathes)).reset_index(drop=True)
     p.close()
     p.join()
     df_ans.to_csv('submit.csv', index=False)
@@ -47,6 +60,8 @@ def predict(path):
         fin_model = pickle.load(f)
 
     df = pandas.read_csv(path)
+    df = hash_join(df[[col for col in feature_column if '_prob' not in col] + ['Id']])
+
     data = df[feature_column].fillna(-10)
     pred = []
 

@@ -90,8 +90,9 @@ if __name__ == '__main__':
               'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 200,
               'scale_pos_weight': 10}
 
-    #4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4} 
-    #2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh: 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521 
+    # 4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4}
+    # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
+    # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
     all_params = {'max_depth': [5, 6],
                   'n_estimators': [100],
@@ -102,7 +103,7 @@ if __name__ == '__main__':
                   'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
+    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
     best_thresh = None
@@ -115,7 +116,7 @@ if __name__ == '__main__':
             model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
-            
+
             model.fit(data[train_idx], target[train_idx],
                       eval_metric=evalmcc_xgb_min,
                       verbose=False)
