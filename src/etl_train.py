@@ -16,7 +16,7 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
 from protos.feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE, LIST_SAME_COL
-from protos.feature_orig import LIST_COLUMN_NUM, LIST_COLUMN_CAT
+from protos.feature_orig import LIST_COLUMN_NUM, LIST_COLUMN_CAT, LIST_COLUMN_DATE
 from protos.feature_zero import LIST_COLUMN_CAT_ZERO, LIST_COLUMN_NUM_ZERO
 from protos.feature_0925 import LIST_COLUMN_ZERO
 
@@ -46,6 +46,8 @@ def etl(train_data, num, feature_column, date_cols):
         train_data[col_names[1]] = tmp.mean(axis=1)
         train_data[col_names[2]] = tmp.max(axis=1)
         train_data[col_names[3]] = train_data[col_names[2]] - train_data[col_names[0]]
+        for col in cols:
+            train_data[col + '_%s_D'%i] = train_data[col] - train_data[col_names[0]]
         logger.info('line date %s end' % i)
 
     logger.info('size %s %s' % train_data.shape)
@@ -56,6 +58,7 @@ def etl(train_data, num, feature_column, date_cols):
         train_data['L%s_NUM_MAX' % i] = tmp.max(axis=1)
         train_data['L%s_NUM_MIN' % i] = tmp.min(axis=1)
         train_data['L%s_NUM_AVG' % i] = tmp.mean(axis=1)
+        train_data['L%s_NUM_DIFF' % i] = train_data['L%s_NUM_MAX' % i] - train_data['L%s_NUM_MIN' % i]
         logger.info('line num %s end' % i)
 
     logger.info('size %s %s' % train_data.shape)
@@ -68,16 +71,24 @@ def etl(train_data, num, feature_column, date_cols):
         train_data['L%s_S%s_NUM_MAX' % (line, i)] = tmp.max(axis=1)
         train_data['L%s_S%s_NUM_MIN' % (line, i)] = tmp.min(axis=1)
         train_data['L%s_S%s_NUM_AVG' % (line, i)] = tmp.mean(axis=1)
+        train_data['L%s_S%s_NUM_DIFF' % (line, i)] = train_data['L%s_S%s_NUM_MAX' % (line, i)] - train_data['L%s_S%s_NUM_MIN' % (line, i)]
+
         logger.info('line num sec %s end' % i)
         logger.info('size %s %s' % train_data.shape)
 
     train_data['L_all_hash_cat'] = train_data[LIST_COLUMN_CAT].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+    train_data['L_all_hash_num'] = train_data[LIST_COLUMN_NUM].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+    train_data['L_all_hash_dat'] = train_data[LIST_COLUMN_DATE].apply(lambda x: hash(''.join(map(str, x))), axis=1)
     train_data['L_all_hash'] = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda x: hash(''.join(map(str, x))), axis=1)
 
 
     for i in list(range(4)) + ['']:
         tmp_cols = [col for col in LIST_COLUMN_CAT if 'L%s' % i in col]
         train_data['L%s_hash_cat'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+        tmp_cols = [col for col in LIST_COLUMN_NUM if 'L%s' % i in col]
+        train_data['L%s_hash_num'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
+        tmp_cols = [col for col in LIST_COLUMN_DATE if 'L%s' % i in col]
+        train_data['L%s_hash_dat'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
         tmp_cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
         train_data['L%s_hash'%i] = train_data[tmp_cols].apply(lambda x: hash(''.join(map(str, x))), axis=1)
 
@@ -109,11 +120,12 @@ if __name__ == '__main__':
     for i in list(range(4)) + ['']:
         cols = [col for col in date_cols if 'L%s' % i in col]
         col_names = ['L%s_D_MIN' % i, 'L%s_D_AVG' % i, 'L%s_D_MAX' % i, 'L%s_D_DIFF' % i]
+        feature_column += [col+'_%s_D'%i for col in cols]
         feature_column += col_names
         logger.info('line date %s end' % i)
 
     for i in list(range(4)) + ['']:
-        feature_column += ['L%s_NUM_MAX' % i, 'L%s_NUM_MIN' % i, 'L%s_NUM_AVG' % i]
+        feature_column += ['L%s_NUM_MAX' % i, 'L%s_NUM_MIN' % i, 'L%s_NUM_AVG' % i, 'L%s_NUM_DIFF' % i]
 
     num_column = [col for col in LIST_FEATURE_COLUMN_NAME if col in LIST_COLUMN_NUM]
     for i in range(52):
@@ -121,15 +133,19 @@ if __name__ == '__main__':
         if len(cols) == 0:
             continue
         line = cols[0][1]
-        col_names = ['L%s_S%s_NUM_MAX' % (line, i), 'L%s_S%s_NUM_MIN' % (line, i), 'L%s_S%s_NUM_AVG' % (line, i)]
+        col_names = ['L%s_S%s_NUM_MAX' % (line, i), 'L%s_S%s_NUM_MIN' % (line, i), 'L%s_S%s_NUM_AVG' % (line, i), 'L%s_S%s_NUM_DIFF' % (line, i)]
         feature_column += col_names
 
-    feature_column = [col for col in feature_column
-                      if col not in LIST_COLUMN_ZERO]
+    #feature_column = [col for col in feature_column
+    #                  if col not in LIST_COLUMN_ZERO]
     feature_column.append('L_all_hash')
     feature_column.append('L_all_hash_cat')
+    feature_column.append('L_all_hash_num')
+    feature_column.append('L_all_hash_dat')
     for i in list(range(4)) + ['']:
         feature_column.append('L%s_hash_cat'%i)
+        feature_column.append('L%s_hash_num'%i)
+        feature_column.append('L%s_hash_dat'%i)
         feature_column.append('L%s_hash'%i)
 
 

@@ -23,6 +23,7 @@ TARGET_COLUMN_NAME = u'Response'
 from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
 from feature_orig import LIST_COLUMN_NUM
+from feature_0928 import LIST_COLUMN_ZERO
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -109,6 +110,8 @@ if __name__ == '__main__':
     p.join()
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
+    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
 
@@ -121,11 +124,16 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
+    #2016-09-27/22:03:59 __main__ 141 [INFO][<module>] param: {'learning_rate': 0.1, 'scale_pos_weight': 10, 'max_depth': 10,
+    #                                     'min_child_weight': 1, 'colsample_bytree': 0.3, 'n_estimators': 300, 'subsample': 1} 
+    #2016-09-27/22:11:58 __main__ 179 [INFO][<module>] score: 0.719638635551 
+    #2016-09-27/22:19:54 __main__ 179 [INFO][<module>] score: 0.733182884206 
+    #2016-09-27/22:27:51 __main__ 179 [INFO][<module>] score: 0.722172677022 
     all_params = {'max_depth': [10],
                   'n_estimators': [300],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [10],
-                  'min_child_weight': [0.01],
+                  'min_child_weight': [1],
                   'subsample': [1],
                   'colsample_bytree': [0.3],
                   }
@@ -141,6 +149,7 @@ if __name__ == '__main__':
         logger.info('param: %s' % (params))
         for train_idx, test_idx in list(cv):
             list_estimator = []
+
             ans = []
             insample_ans = []
             for i in [0, 1, 2, 3, '']:  # [1, 3, '']:  #
@@ -149,6 +158,8 @@ if __name__ == '__main__':
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
                 model.fit(data.ix[train_idx, cols], target[train_idx],
+                          eval_set=[(data.ix[test_idx, cols], target[test_idx])],
+                          early_stopping_rounds=50,
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
                 list_estimator.append(model)
@@ -182,7 +193,7 @@ if __name__ == '__main__':
             pred = model.predict_proba(insample_ans)[:, 1]  # ans.max(axis=1)
             score = roc_auc_score(target[train_idx], pred)
             logger.info('INSAMPLE train score: %s' % score)
-
+            
             list_estimator.append(model)
 
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
@@ -194,7 +205,6 @@ if __name__ == '__main__':
         cols = [col for col in feature_column if 'L%s' % i in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
-        #model.fit(data[cols], target, eval_metric=evalmcc_xgb_min)
         model.fit(data[cols], target,
                   eval_metric=evalmcc_xgb_min,
                   verbose=False)
