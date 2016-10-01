@@ -73,7 +73,6 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
-    #feature_column = [col for col in feature_column if 'hash' not in col or 'L_hash_num' == col]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
     #train_data, feature_column = hash_groupby(train_data, feature_column)
@@ -99,7 +98,7 @@ if __name__ == '__main__':
                   'n_estimators': [300],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [10],
-                  'min_child_weight': [0.01],
+                  'min_child_weight': [1],
                   'subsample': [1],
                   'colsample_bytree': [0.3],
                   }
@@ -107,6 +106,7 @@ if __name__ == '__main__':
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
     all_ans = None
     all_target = None
+    all_ids = None
 
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
@@ -135,9 +135,11 @@ if __name__ == '__main__':
             if all_ans is None:
                 all_ans = ans
                 all_target = target[test_idx]
+                all_ids = train_data.ix[test_idx, 'Id'].values
             else:
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
+                all_ids = numpy.r_[all_ids, train_data.ix[test_idx, 'Id']]
 
             # model = LogisticRegressionCV(n_jobs=-1, class_weight='balanced', scoring='roc_auc', random_state=0)
             # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
@@ -162,6 +164,7 @@ if __name__ == '__main__':
 
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
+    pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
 
     idx = 0
     for i in [0, 1, 2, 3, '']:  # [1, 3, '']:
