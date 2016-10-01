@@ -27,7 +27,7 @@ from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
 from feature_orig import LIST_COLUMN_NUM
 from feature_0928 import LIST_COLUMN_ZERO
-from omit_pos_id import LIST_OMIT_POS_ID
+from omit_pos_id import LIST_OMIT_POS_ID, LIST_OMIT_POS_MIN
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
                     datefmt='%Y-%m-%d/%H:%M:%S',
@@ -110,14 +110,17 @@ if __name__ == '__main__':
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
     
     omit_idx = train_data[~train_data['Id'].isin(LIST_OMIT_POS_ID)].index.values
+    omit_min_idx = train_data[~train_data['Id'].isin(LIST_OMIT_POS_MIN)].index.values
+
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
         for train_idx, test_idx in list(cv):
             train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
+            train_omit_min_idx = numpy.intersect1d(train_idx, omit_min_idx)
             logger.info('ommit size: %s %s'%(train_idx.shape[0], len(train_omit_idx)))
-            list_estimator = [None, None]
-            continue
+            list_estimator = []
+
             ans = []
             insample_ans = []
             for i in ['']:  # [1, 3, '']:  #
@@ -134,6 +137,15 @@ if __name__ == '__main__':
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
                 model.fit(data.ix[train_omit_idx, cols], target[train_omit_idx],
+                          eval_metric=evalmcc_xgb_min,
+                          verbose=False)
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                model = XGBClassifier(seed=0)
+                model.set_params(**params)
+                model.fit(data.ix[train_omit_min_idx, cols], target[train_omit_min_idx],
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
                 list_estimator.append(model)
