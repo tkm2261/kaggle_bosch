@@ -5,6 +5,8 @@ import pandas
 import pickle
 import numpy
 import glob
+import hashlib
+
 from multiprocessing import Pool
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
@@ -39,9 +41,9 @@ def hash_groupby(df, feature_column):
         if 'hash' not in col:
             continue
         logger.info('hash col%s' % col)
-        tmp = df.groupby(col)[[TARGET_COLUMN_NAME]].sum()
+        tmp = df.groupby(col)[[TARGET_COLUMN_NAME]].count()
         #tmp_mean = tmp[TARGET_COLUMN_NAME].mean()
-        tmp[TARGET_COLUMN_NAME][tmp[TARGET_COLUMN_NAME] < 2] = 2
+        #tmp[TARGET_COLUMN_NAME][tmp[TARGET_COLUMN_NAME] < 2] = 2
         tmp.columns = [col + '_prob']
         new_feature_column.append(col + '_prob')
         df = pandas.merge(df, tmp, how='left', left_on=col, right_index=True)
@@ -52,7 +54,9 @@ def hash_groupby(df, feature_column):
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    return pandas.read_csv(filename)
+    df = pandas.read_csv(filename)
+    return df
+
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -69,8 +73,10 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+    #feature_column = [col for col in feature_column if 'hash' not in col or 'L_hash_num' == col]
+
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    train_data, feature_column = hash_groupby(train_data, feature_column)
+    #train_data, feature_column = hash_groupby(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
@@ -93,7 +99,7 @@ if __name__ == '__main__':
                   'n_estimators': [300],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [10],
-                  'min_child_weight': [1],
+                  'min_child_weight': [0.01],
                   'subsample': [1],
                   'colsample_bytree': [0.3],
                   }
@@ -118,8 +124,6 @@ if __name__ == '__main__':
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
                 model.fit(data.ix[train_idx, cols], target[train_idx],
-                          eval_set=[(data.ix[test_idx, cols], target[test_idx])],
-                          early_stopping_rounds=50,
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
                 list_estimator.append(model)

@@ -35,7 +35,7 @@ def hash_join(df):
         logger.info('hash col%s' % col)
         tmp = mst.groupby(col)[[col + '_prob']].max()
         df = df.merge(tmp, how='left', left_on=col, right_index=True, copy=False)
-        df[col + '_prob'] = df[col + '_prob'].fillna(2)
+        df[col + '_prob'] = df[col + '_prob'].fillna(1)
 
     return df
 
@@ -60,7 +60,7 @@ def predict(path):
         fin_model = pickle.load(f)
 
     df = pandas.read_csv(path)
-    df = hash_join(df[[col for col in feature_column if '_prob' not in col] + ['Id']])
+    #df = hash_join(df[[col for col in feature_column if '_prob' not in col] + ['Id']])
 
     data = df[feature_column].fillna(-10)
     pred = []

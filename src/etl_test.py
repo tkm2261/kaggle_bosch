@@ -6,7 +6,7 @@ import sys
 import glob
 import re
 import gc
-
+import hashlib
 from multiprocessing import Pool
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 sys.path.append(APP_ROOT)
@@ -148,12 +148,17 @@ if __name__ == '__main__':
         feature_column.append('L%s_hash_dat'%i)
         feature_column.append('L%s_hash'%i)
 
+    feature_column.append('L_hash_cnt')
+    mst = pandas.read_csv('../data/hash_table.csv', header=None, names=['L_hash_cnt'], index_col=0)
 
     path = sys.argv[1]
     train_data_all = pandas.read_csv(path, chunksize=10000)
     num = 0
     file_num = re.match(u'.*_(\d+).csv.gz$', path).group(1)
     for train_data in train_data_all:
+        aaa = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+        train_data['__hash__'] = aaa
+        train_data = pandas.merge(train_data, mst, how='left', left_on='__hash__', right_index=True,  copy=False)
         postfix = '%s_%s' % (file_num, num)
         etl(train_data, postfix, feature_column, date_cols)
         num += 1

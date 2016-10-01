@@ -103,7 +103,7 @@ if __name__ == '__main__':
                   'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
+    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
     best_thresh = None
