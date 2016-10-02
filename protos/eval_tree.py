@@ -32,11 +32,11 @@ def main():
 
     from train_feature_1 import LIST_TRAIN_COL
     feature_column = LIST_TRAIN_COL
-
+    logger.info('num model: %s'%len(list_model))
     model = list_model[-2]
     booster = model.booster()
     map_node = defaultdict(int)
-    print(booster.get_dump()[0])
+    #print(booster.get_dump()[0])
     for tree in booster.get_dump():
         nodes = [node.split('<')[0] for _, node in _NODEPAT.findall(tree)]
         for i in nodes:
@@ -45,8 +45,24 @@ def main():
                     map_node['%s-%s'%(i, j)] += 1
 
     df = pandas.Series(dict(map_node)).sort_values(ascending=False)
-    df.to_csv('aaa.csv')
+    df.to_csv('cross_term.csv')
     print(df.head(10))
+    """
+    list_group = []
+    for f1, f2 in [ele.split('-') for ele in df[df > 800].index.values]:
+        flg = False
+        for g in list_group:
+            if f1 in g:
+                g.append(f2)
+                flg = True
+            elif f2 in g:
+                g.append(f1)
+                flg = True
 
+        if not flg:
+            list_group.append([f1, f2])
+
+    import pdb;pdb.set_trace()
+    """
 if __name__ == '__main__':
     main()
