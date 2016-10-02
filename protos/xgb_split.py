@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
             ans = []
             insample_ans = []
-            for i in ['']:  # [1, 3, '']:  #
+            for i in [1, 3, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
@@ -147,13 +147,6 @@ if __name__ == '__main__':
                 model.fit(data.ix[train_idx, cols], target[train_idx],
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
-                list_estimator.append(model)
-                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
-                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
-                logger.info('model2: %s' % i)
-                #model = XGBClassifier(seed=0)
-                model = LogisticRegression()
-                model.fit(data.ix[train_idx, cols], target[train_idx])
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
@@ -194,26 +187,13 @@ if __name__ == '__main__':
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
     del train_data
     idx = 0
-    for i in ['']:  # [1, 3, '']:
+    for i in [1, 3, '']:
         gc.collect()
         logger.info('model: %s' % i)
         cols = [col for col in feature_column if 'L%s' % i in col]
         model = XGBClassifier(seed=0)
         model.set_params(**params)
         model.fit(data[cols], target,
-                  eval_metric=evalmcc_xgb_min,
-                  verbose=False)
-
-        list_estimator[idx] = model
-        idx += 1
-
-        gc.collect()
-        list_estimator[idx] = model
-        idx += 1
-        logger.info('model2: %s' % i)
-        model = XGBClassifier(seed=0)
-        model.set_params(**params)
-        model.fit(data.ix[omit_idx, cols], target[omit_idx],
                   eval_metric=evalmcc_xgb_min,
                   verbose=False)
 
