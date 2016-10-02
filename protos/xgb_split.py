@@ -58,6 +58,13 @@ def read_csv(filename):
     df = pandas.read_csv(filename)
     return df
 
+def merge(df, feature_column):
+    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_1.csv').values
+    mst = pandas.DataFrame(data, columns=['L_stack_m%s'%i for i in range(data.shape[1])], index=ids)
+    feature_column += ['L_stack_m%s'%i for i in range(data.shape[1])]
+    return df.merge(mst, how='left', left_on='Id', right_index=True, copy=False), feature_column
+
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -74,9 +81,11 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+    #feature_column = [col for col in feature_column 
+    #                  if col not in ['L_hash_cnt_cat', 'L_hash_cnt_num', 'L_hash_cnt_date']]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-
+    #train_data, feature_column = merge(train_data, feature_column)
     #train_data, feature_column = hash_groupby(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
@@ -142,7 +151,7 @@ if __name__ == '__main__':
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
-
+                """
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
                 model.fit(data.ix[train_omit_min_idx, cols], target[train_omit_min_idx],
@@ -151,6 +160,8 @@ if __name__ == '__main__':
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+                """
+
             logger.info('train_end')
             ans = numpy.array(ans).T
             insample_ans = numpy.array(insample_ans).T
