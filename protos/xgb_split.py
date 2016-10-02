@@ -61,6 +61,15 @@ def read_csv(filename):
     df = pandas.read_csv(filename)
     return df
 
+def make_cross(df, feature_columns):
+    mst = pandas.read_csv('cross_term.csv', header=None, index_col=0)[1]
+    mst = mst[mst > 500]
+    for pair in mst.index.values:
+        f1, f2 = pair.split('-')
+        df[pair] = df[f1] * df[f2]
+        feature_columns.append(pair)
+        logger.info('cross: %s'%pair)
+    return df, feature_columns
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -79,7 +88,7 @@ if __name__ == '__main__':
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    #train_data, feature_column = hash_groupby(train_data, feature_column)
+    #train_data, feature_column = make_cross(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
