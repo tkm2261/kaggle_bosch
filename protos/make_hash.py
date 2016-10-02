@@ -35,6 +35,9 @@ def read_csv(filename):
         df_ret['hash_cat'] = df[LIST_COLUMN_CAT].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         df_ret['hash_num'] = df[LIST_COLUMN_NUM].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         df_ret['hash_date'] = df[LIST_COLUMN_DATE].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+        for i in range(4):
+            cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
+            df_ret['L%s_hash_cnt'%i] = df[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
         if ret is None:
             ret = df_ret
@@ -63,3 +66,8 @@ if __name__ == '__main__':
 
     _data = pandas.DataFrame(data['hash_date'].values, columns=['hash']).groupby('hash')['hash'].count()
     _data.to_csv('../data/hash_table_date.csv')
+
+    for i in range(4):
+        _data = pandas.DataFrame(data['L%s_hash_cnt'%i].values, columns=['hash']).groupby('hash')['hash'].count()
+        _data.to_csv('../data/hash_table_L%s.csv'%i)
+
