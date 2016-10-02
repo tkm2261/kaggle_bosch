@@ -165,13 +165,15 @@ if __name__ == '__main__':
 
             model = XGBClassifier(seed=0)
             model.fit(ans, target[test_idx])
+            pred = model.predict_proba(ans)[:, 1]
+            logger.info('model thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
             pred = ans.max(axis=1)
             logger.info('max thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
             pred = ans.min(axis=1)
             logger.info('min thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
-            score = roc_auc_score(target[test_idx], ans[:, -2])
+            score = roc_auc_score(target[test_idx], ans[:, -1])
             logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target[test_idx]))
-            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans[:, -2], target[test_idx]))
+            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans[:, -1], target[test_idx]))
             logger.info('score: %s' % score)
             score = roc_auc_score(target[test_idx], pred)
             logger.info('INSAMPLE score: %s' % score)

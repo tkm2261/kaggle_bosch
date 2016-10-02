@@ -39,6 +39,16 @@ def read_csv(filename):
             cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
             df_ret['L%s_hash_cnt'%i] = df[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
+            cols2 = [col for col in cols if col in LIST_COLUMN_NUM]
+            df_ret['L%s_hash_cnt_num'%i] = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+
+            cols2 = [col for col in cols if col in LIST_COLUMN_CAT]
+            df_ret['L%s_hash_cnt_cat'%i] = train_data[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+
+            cols2 = [col for col in cols if col in LIST_COLUMN_DATE]
+            df_ret['L%s_hash_cnt_date'%i] = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+
+
         if ret is None:
             ret = df_ret
         else:

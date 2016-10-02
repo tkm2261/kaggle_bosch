@@ -149,13 +149,25 @@ if __name__ == '__main__':
         feature_column.append('L%s_hash'%i)
 
     feature_column += ['L_hash_cnt', 'L_hash_cnt_cat', 'L_hash_cnt_num', 'L_hash_cnt_date']
-    feature_column += ['L%s_hash_cnt'%i for i in range(4)]
-
     mst = pandas.read_csv('../data/hash_table.csv', header=None, names=['L_hash_cnt'], index_col=0)
     mst_cat = pandas.read_csv('../data/hash_table_cat.csv', header=None, names=['L_hash_cnt_cat'], index_col=0)
     mst_num = pandas.read_csv('../data/hash_table_num.csv', header=None, names=['L_hash_cnt_num'], index_col=0)
     mst_date = pandas.read_csv('../data/hash_table_date.csv', header=None, names=['L_hash_cnt_date'], index_col=0)
-    list_mst = [pandas.read_csv('../data/hash_table_L%s.csv'%i, header=None, names=['L%s_hash_cnt'%i], index_col=0) for i in range(4)]
+    
+    feature_column += ['L%s_hash_cnt'%i for i in range(4)]
+    list_mst = [{'mst': pandas.read_csv('../data/hash_table_L%s.csv'%i, header=None, names=['L%s_hash_cnt'%i], index_col=0),
+                 'cat': pandas.read_csv('../data/hash_table_cat_L%s.csv'%i, header=None, names=['L%s_hash_cnt_cat'%i], index_col=0),
+                 'num': pandas.read_csv('../data/hash_table_num_L%s.csv'%i, header=None, names=['L%s_hash_cnt_num'%i], index_col=0),
+                 'date': pandas.read_csv('../data/hash_table_date_L%s.csv'%i, header=None, names=['L%s_hash_cnt_date'%i], index_col=0),
+                }
+                for i in range(4)]
+
+
+    feature_column += ['L%s_hash_cnt_nat'%i for i in range(4)]
+    feature_column += ['L%s_hash_cnt_num'%i for i in range(4)]
+    feature_column += ['L%s_hash_cnt_date'%i for i in range(4)]
+
+
     path = sys.argv[1]
     train_data_all = pandas.read_csv(path, chunksize=1000)
     num = 0
@@ -178,7 +190,22 @@ if __name__ == '__main__':
             cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'L%s' % i in col]
             aaa = train_data[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
             train_data['__hash_%s__'%i] = aaa
-            train_data = pandas.merge(train_data, list_mst[i], how='left', left_on='__hash_%s__'%i, right_index=True,  copy=False)
+            train_data = pandas.merge(train_data, list_mst[i]['mst'], how='left', left_on='__hash_%s__'%i, right_index=True,  copy=False)
+
+            cols2 = [col for col in cols if col in LIST_COLUMN_NUM]
+            aaa = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            train_data['__hash1_%s__'%i] = aaa
+            train_data = pandas.merge(train_data, list_mst[i]['num'], how='left', left_on='__hash1_%s__'%i, right_index=True,  copy=False)
+
+            cols2 = [col for col in cols if col in LIST_COLUMN_CAT]
+            aaa = train_data[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            train_data['__hash2_%s__'%i] = aaa
+            train_data = pandas.merge(train_data, list_mst[i]['cat'], how='left', left_on='__hash2_%s__'%i, right_index=True,  copy=False)
+
+            cols2 = [col for col in cols if col in LIST_COLUMN_DATE]
+            aaa = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            train_data['__hash3_%s__'%i] = aaa
+            train_data = pandas.merge(train_data, list_mst[i]['date'], how='left', left_on='__hash3_%s__'%i, right_index=True,  copy=False)
 
 
         postfix = '%s_%s' % (file_num, num)
