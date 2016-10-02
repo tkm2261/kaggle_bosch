@@ -94,34 +94,37 @@ if __name__ == '__main__':
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
-    all_params = {'max_depth': [5, 6],
+    all_params = {'max_depth': [4],
                   'n_estimators': [100],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
                   'colsample_bytree': [1],
                   'scale_pos_weight': [1]}
-    _all_params = {'C': [10**i for i in range(-3, 2)],
-                   'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
+    _all_params = {'C': [10**i for i in range(-1, 5)],
+                   'penalty': ['l1']}
+    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
     best_thresh = None
     pg = list(ParameterGrid(all_params))
+
+    logger.info('all score: %s %s' % mcc_optimize(data[:, -1], target))
+    logger.info('mean score: %s %s' % mcc_optimize(data.mean(axis=1), target))
+    logger.info('min score: %s %s' % mcc_optimize(data.min(axis=1), target))
+    logger.info('max score: %s %s' % mcc_optimize(data.max(axis=1), target))
     for i, params in enumerate(pg):
         logger.info('%s/%s param: %s' % (i + 1, len(pg), params))
         pred_proba_all = []
         y_true = []
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
-            #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            #model = LogisticRegression(n_jobs=-1)
             model.set_params(**params)
-            """
             model.fit(data[train_idx], target[train_idx],
                       eval_metric=evalmcc_xgb_min,
                       verbose=False)
-            """
-            pred_proba = data[test_idx, 0]#model.predict_proba(data[test_idx])[:, 1]
+            pred_proba = model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)

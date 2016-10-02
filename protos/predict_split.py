@@ -50,6 +50,15 @@ def main():
     p.join()
     df_ans.to_csv('submit.csv', index=False)
 
+def make_cross(df):
+    mst = pandas.read_csv('cross_term.csv', header=None, index_col=0)[1]
+    mst = mst[mst > 500]
+    for pair in mst.index.values:
+        f1, f2 = pair.split('-')
+        df[pair] = df[f1] * df[f2]
+        logger.info('cross: %s'%pair)
+    return df
+
 
 def predict(path):
     feature_column = LIST_TRAIN_COL
@@ -61,23 +70,21 @@ def predict(path):
 
     df = pandas.read_csv(path)
     #df = hash_join(df[[col for col in feature_column if '_prob' not in col] + ['Id']])
-
+    df = make_cross(df)
     data = df[feature_column].fillna(-10)
+
+
     pred = []
 
     cnt = 0
-    for j, jj in enumerate(['']):
+    for j, jj in enumerate([1, 3, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         model = list_model[cnt]
         pred.append(model.predict_proba(data[cols])[:, 1])
         cnt += 1
 
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-
     pred = numpy.array(pred).T
-    predict_proba = pred[:, 0] #fin_model.predict_proba(pred)[:, 1]
+    predict_proba = fin_model.predict_proba(pred)[:, 1]
     predict_proba2 = pred.mean(axis=1)
     logger.info('end load')
 

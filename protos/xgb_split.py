@@ -88,7 +88,7 @@ if __name__ == '__main__':
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    #train_data, feature_column = make_cross(train_data, feature_column)
+    train_data, feature_column = make_cross(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
