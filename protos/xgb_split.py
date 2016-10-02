@@ -89,18 +89,23 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    # 2016-09-27/22:03:59 __main__ 141 [INFO][<module>] param: {'learning_rate': 0.1, 'scale_pos_weight': 10, 'max_depth': 10,
-    #                                     'min_child_weight': 1, 'colsample_bytree': 0.3, 'n_estimators': 300, 'subsample': 1}
-    # 2016-09-27/22:11:58 __main__ 179 [INFO][<module>] score: 0.719638635551
-    # 2016-09-27/22:19:54 __main__ 179 [INFO][<module>] score: 0.733182884206
-    # 2016-09-27/22:27:51 __main__ 179 [INFO][<module>] score: 0.722172677022
-    all_params = {'max_depth': [10],
-                  'n_estimators': [300],
+    #2016-10-01/12:49:11 __main__ 115 [INFO][<module>] param: {'min_child_weight': 0.01, 'scale_pos_weight': 1, 'n_est
+    #imators': 200, 'max_depth': 9, 'subsample': 1, 'colsample_bytree': 0.5, 'learning_rate': 0.1}
+    #2016-10-01/12:49:11 __main__ 122 [INFO][<module>] model: 2
+    #2016-10-01/12:49:45 __main__ 122 [INFO][<module>] model:
+    #2016-10-01/12:55:12 __main__ 132 [INFO][<module>] train_end
+    #2016-10-01/12:55:17 __main__ 152 [INFO][<module>] pred thresh: 0.235527, score: 0.285598045635
+    #2016-10-01/12:55:17 __main__ 154 [INFO][<module>] mean thresh: 0.0739454, score: 0.268554492546
+    #2016-10-01/12:55:17 __main__ 155 [INFO][<module>] all thresh: 0.157561, score: 0.281773786143
+    #2016-10-01/12:55:17 __main__ 156 [INFO][<module>] score: 0.817277189769
+
+    all_params = {'max_depth': [9],
+                  'n_estimators': [200],
                   'learning_rate': [0.1],
-                  'scale_pos_weight': [10],
-                  'min_child_weight': [1],
+                  'scale_pos_weight': [1],
+                  'min_child_weight': [0.01],
                   'subsample': [1],
-                  'colsample_bytree': [0.3],
+                  'colsample_bytree': [0.5],
                   }
 
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
@@ -113,12 +118,12 @@ if __name__ == '__main__':
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
-        for train_idx, test_idx in list(cv):
+        for train_idx, test_idx in list(cv)[:1]:
             list_estimator = []
 
             ans = []
             insample_ans = []
-            for i in [0, 1, 2, 3, '']:  # [1, 3, '']:  #
+            for i in [2, '']:  # [1, 3, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
@@ -162,9 +167,9 @@ if __name__ == '__main__':
 
             list_estimator.append(model)
 
-    pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
-    pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
-    pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
+    #pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
+    #pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
+    #pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
 
     idx = 0
     for i in [0, 1, 2, 3, '']:  # [1, 3, '']:

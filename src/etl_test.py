@@ -96,7 +96,7 @@ def etl(train_data, num, feature_column, date_cols):
                     feature_column]
 
     logger.info('size %s %s' % df.shape)
-    df.to_csv('../data/test_etl/test_elt_%s.csv' % num, index=False)
+    df.to_csv('../data/test_etl/test_elt_%s.csv.gz' % num, index=False, compression='gzip')
 
 if __name__ == '__main__':
 
@@ -148,8 +148,11 @@ if __name__ == '__main__':
         feature_column.append('L%s_hash_dat'%i)
         feature_column.append('L%s_hash'%i)
 
-    feature_column.append('L_hash_cnt')
+    feature_column += ['L_hash_cnt', 'L_hash_cnt_cat', 'L_hash_cnt_num', 'L_hash_cnt_date']
     mst = pandas.read_csv('../data/hash_table.csv', header=None, names=['L_hash_cnt'], index_col=0)
+    mst_cat = pandas.read_csv('../data/hash_table_cat.csv', header=None, names=['L_hash_cnt_cat'], index_col=0)
+    mst_num = pandas.read_csv('../data/hash_table_num.csv', header=None, names=['L_hash_cnt_num'], index_col=0)
+    mst_date = pandas.read_csv('../data/hash_table_date.csv', header=None, names=['L_hash_cnt_date'], index_col=0)
 
     path = sys.argv[1]
     train_data_all = pandas.read_csv(path, chunksize=10000)
@@ -159,6 +162,17 @@ if __name__ == '__main__':
         aaa = train_data[LIST_FEATURE_COLUMN_NAME].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         train_data['__hash__'] = aaa
         train_data = pandas.merge(train_data, mst, how='left', left_on='__hash__', right_index=True,  copy=False)
+        aaa = train_data[LIST_COLUMN_NUM].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+        train_data['__hash1__'] = aaa
+        train_data = pandas.merge(train_data, mst_num, how='left', left_on='__hash1__', right_index=True,  copy=False)
+        aaa = train_data[LIST_COLUMN_CAT].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+        train_data['__hash2__'] = aaa
+        train_data = pandas.merge(train_data, mst_cat, how='left', left_on='__hash2__', right_index=True,  copy=False)
+        aaa = train_data[LIST_COLUMN_DATE].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+        train_data['__hash3__'] = aaa
+        train_data = pandas.merge(train_data, mst_date, how='left', left_on='__hash3__', right_index=True,  copy=False)
+
+
         postfix = '%s_%s' % (file_num, num)
         etl(train_data, postfix, feature_column, date_cols)
         num += 1

@@ -6,6 +6,7 @@ import pickle
 import numpy
 import glob
 import hashlib
+import gc
 from multiprocessing import Pool
 from feature_orig import LIST_COLUMN_CAT, LIST_COLUMN_NUM, LIST_COLUMN_DATE
 
@@ -36,9 +37,11 @@ def read_csv(filename):
         df_ret['hash_date'] = df[LIST_COLUMN_DATE].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
         if ret is None:
-            ret = df
+            ret = df_ret
         else:
-            ret = pandas.concat([ret, df])
+            ret = pandas.concat([ret, df_ret])
+        del df
+        gc.collect()
         logger.info('%s'%(ret.shape[0]))
     return ret
 
@@ -46,7 +49,17 @@ if __name__ == '__main__':
     list_path = list(glob.glob(os.path.join(DATA_DIR, 'train_simple_part/*')))
     list_path += list(glob.glob(os.path.join(DATA_DIR, 'test_simple_part/*')))
     list_path = sorted(list_path)
-    p = Pool()    
+    p = Pool(40)
     data = pandas.concat(p.map(read_csv, list_path)).reset_index(drop=True)
-    #data = pandas.DataFrame(data, columns=['hash']).groupby('hash')['hash'].count()
-    data.to_csv('../data/hash_table.csv')
+
+    _data = pandas.DataFrame(data['hash_all'].values, columns=['hash']).groupby('hash')['hash'].count()
+    _data.to_csv('../data/hash_table.csv')
+
+    _data = pandas.DataFrame(data['hash_cat'].values, columns=['hash']).groupby('hash')['hash'].count()
+    _data.to_csv('../data/hash_table_cat.csv')
+
+    _data = pandas.DataFrame(data['hash_num'].values, columns=['hash']).groupby('hash')['hash'].count()
+    _data.to_csv('../data/hash_table_num.csv')
+
+    _data = pandas.DataFrame(data['hash_date'].values, columns=['hash']).groupby('hash')['hash'].count()
+    _data.to_csv('../data/hash_table_date.csv')
