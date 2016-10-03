@@ -163,13 +163,13 @@ if __name__ == '__main__':
                 for i in range(4)]
 
 
-    feature_column += ['L%s_hash_cnt_nat'%i for i in range(4)]
+    feature_column += ['L%s_hash_cnt_cat'%i for i in range(4)]
     feature_column += ['L%s_hash_cnt_num'%i for i in range(4)]
     feature_column += ['L%s_hash_cnt_date'%i for i in range(4)]
 
 
     path = sys.argv[1]
-    train_data_all = pandas.read_csv(path, chunksize=1000)
+    train_data_all = pandas.read_csv(path, chunksize=10000)
     num = 0
     file_num = re.match(u'.*_(\d+).csv.gz$', path).group(1)
     for train_data in train_data_all:
@@ -206,7 +206,8 @@ if __name__ == '__main__':
             aaa = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
             train_data['__hash3_%s__'%i] = aaa
             train_data = pandas.merge(train_data, list_mst[i]['date'], how='left', left_on='__hash3_%s__'%i, right_index=True,  copy=False)
-
+        del aaa
+        gc.collect()
 
         postfix = '%s_%s' % (file_num, num)
         etl(train_data, postfix, feature_column, date_cols)

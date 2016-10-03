@@ -40,13 +40,13 @@ def read_csv(filename):
             df_ret['L%s_hash_cnt'%i] = df[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
             cols2 = [col for col in cols if col in LIST_COLUMN_NUM]
-            df_ret['L%s_hash_cnt_num'%i] = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            df_ret['L%s_hash_cnt_num'%i] = df[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
             cols2 = [col for col in cols if col in LIST_COLUMN_CAT]
-            df_ret['L%s_hash_cnt_cat'%i] = train_data[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            df_ret['L%s_hash_cnt_cat'%i] = df[cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
             cols2 = [col for col in cols if col in LIST_COLUMN_DATE]
-            df_ret['L%s_hash_cnt_date'%i] = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            df_ret['L%s_hash_cnt_date'%i] = df[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
 
         if ret is None:
@@ -80,4 +80,12 @@ if __name__ == '__main__':
     for i in range(4):
         _data = pandas.DataFrame(data['L%s_hash_cnt'%i].values, columns=['hash']).groupby('hash')['hash'].count()
         _data.to_csv('../data/hash_table_L%s.csv'%i)
+
+        _data = pandas.DataFrame(data['L%s_hash_cnt_num'%i].values, columns=['hash']).groupby('hash')['hash'].count()
+        _data.to_csv('../data/hash_table_num_L%s.csv'%i)
+        _data = pandas.DataFrame(data['L%s_hash_cnt_cat'%i].values, columns=['hash']).groupby('hash')['hash'].count()
+        _data.to_csv('../data/hash_table_cat_L%s.csv'%i)
+        _data = pandas.DataFrame(data['L%s_hash_cnt_date'%i].values, columns=['hash']).groupby('hash')['hash'].count()
+        _data.to_csv('../data/hash_table_date_L%s.csv'%i)
+
 

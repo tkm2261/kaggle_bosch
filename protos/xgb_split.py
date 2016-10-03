@@ -63,13 +63,24 @@ def read_csv(filename):
 
 def make_cross(df, feature_columns):
     mst = pandas.read_csv('cross_term.csv', header=None, index_col=0)[1]
-    mst = mst[mst > 500]
+    mst = mst[mst > 600]
     for pair in mst.index.values:
         f1, f2 = pair.split('-')
         df[pair] = df[f1] * df[f2]
         feature_columns.append(pair)
         logger.info('cross: %s'%pair)
     return df, feature_columns
+
+def make_omit():
+    target = pandas.read_csv('stack_1_target_1.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_1.csv').values
+    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
+
+    df = pandas.DataFrame(data)
+    df['target'] = target
+    df['Id'] = ids
+
+    return df[df.ix[:, 1] > 0.9]['Id'].values
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -88,10 +99,13 @@ if __name__ == '__main__':
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    #train_data, feature_column = make_cross(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
+    data, feature_column = make_cross(data, feature_column)
+    ids = train_data['Id']
+    del train_data
+    gc.collect()
 
     pos_rate = float(sum(target)) / target.shape[0]
     logger.info('shape %s %s' % data.shape)
@@ -102,66 +116,81 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    #2016-10-01/12:49:11 __main__ 115 [INFO][<module>] param: {'min_child_weight': 0.01, 'scale_pos_weight': 1, 'n_est
-    #imators': 200, 'max_depth': 9, 'subsample': 1, 'colsample_bytree': 0.5, 'learning_rate': 0.1}
-    #2016-10-01/12:49:11 __main__ 122 [INFO][<module>] model: 2
-    #2016-10-01/12:49:45 __main__ 122 [INFO][<module>] model:
-    #2016-10-01/12:55:12 __main__ 132 [INFO][<module>] train_end
-    #2016-10-01/12:55:17 __main__ 152 [INFO][<module>] pred thresh: 0.235527, score: 0.285598045635
-    #2016-10-01/12:55:17 __main__ 154 [INFO][<module>] mean thresh: 0.0739454, score: 0.268554492546
-    #2016-10-01/12:55:17 __main__ 155 [INFO][<module>] all thresh: 0.157561, score: 0.281773786143
-    #2016-10-01/12:55:17 __main__ 156 [INFO][<module>] score: 0.817277189769
+    #2016-10-03/13:01:37 __main__ 137 [INFO][<module>] param: {'learning_rate': 0.1, 'min_child_weight': 0.1, 'subsample': 1, 'colsample_bytree': 0.5, 'max_depth': 9, 'scale_pos_weight': 1, 'n_estimators': 200} 
+    #2016-10-03/13:01:38 __main__ 140 [INFO][<module>] ommit size: 789164 788733 
+    #2016-10-03/13:01:38 __main__ 145 [INFO][<module>] model: 1 
+    #2016-10-03/13:03:02 __main__ 145 [INFO][<module>] model:  
+    #2016-10-03/13:08:39 __main__ 157 [INFO][<module>] train_end 
+    #2016-10-03/13:08:45 __main__ 172 [INFO][<module>] model thresh: 0.40235, score: 0.422831097438 
+    #2016-10-03/13:08:45 __main__ 174 [INFO][<module>] max thresh: 0.270091, score: 0.382181080761 
+    #2016-10-03/13:08:45 __main__ 176 [INFO][<module>] min thresh: 0.0756317, score: 0.233070222569 
+    #2016-10-03/13:08:45 __main__ 178 [INFO][<module>] mean thresh: 0.138414, score: 0.379501773732 
+    #2016-10-03/13:08:45 __main__ 179 [INFO][<module>] all thresh: 0.269917, score: 0.415787278918 
+    #2016-10-03/13:08:45 __main__ 180 [INFO][<module>] score: 0.896138744825 
+    #2016-10-03/13:08:46 __main__ 182 [INFO][<module>] INSAMPLE score: 0.877910037495 
+    #2016-10-03/13:08:46 __main__ 185 [INFO][<module>] INSAMPLE train score: 0.997735402358 
 
     all_params = {'max_depth': [9],
                   'n_estimators': [200],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
-                  'min_child_weight': [0.01],
+                  'min_child_weight': [0.1],
                   'subsample': [1],
                   'colsample_bytree': [0.5],
                   }
 
-    cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
+    cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=10)
     all_ans = None
     all_target = None
     all_ids = None
 
-    omit_idx = train_data[~train_data['Id'].isin(LIST_OMIT_POS_ID)].index.values
+    omit_idx = ids[~ids.isin(make_omit())].index.values
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
-        for train_idx, test_idx in list(cv):
+        for train_idx, test_idx in list(cv)[:1]:
             train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
             logger.info('ommit size: %s %s'%(train_idx.shape[0], len(train_omit_idx)))
             list_estimator = []
-
             ans = []
             insample_ans = []
-            for i in [1, 3, '']:  #
+            for i in [1, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
+                gc.collect()
                 model.fit(data.ix[train_idx, cols], target[train_idx],
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
-
+                """
+                logger.info('model2: %s' % i)
+                model = XGBClassifier(seed=0)
+                model.set_params(**params)
+                gc.collect()
+                model.fit(data.ix[train_omit_idx, cols], target[train_omit_idx],
+                          eval_metric=evalmcc_xgb_min,
+                          verbose=False)
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+                """
             logger.info('train_end')
             ans = numpy.array(ans).T
             insample_ans = numpy.array(insample_ans).T
             if all_ans is None:
                 all_ans = ans
                 all_target = target[test_idx]
-                all_ids = train_data.ix[test_idx, 'Id'].values
+                all_ids = ids.ix[test_idx].values
             else:
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, train_data.ix[test_idx, 'Id']]
+                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
 
             model = XGBClassifier(seed=0)
             model.fit(ans, target[test_idx])
@@ -187,9 +216,9 @@ if __name__ == '__main__':
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
-    del train_data
+
     idx = 0
-    for i in [1, 3, '']:
+    for i in [1, '']:
         gc.collect()
         logger.info('model: %s' % i)
         cols = [col for col in feature_column if 'L%s' % i in col]
