@@ -33,7 +33,7 @@ def main():
     from train_feature_1 import LIST_TRAIN_COL
     feature_column = LIST_TRAIN_COL
     logger.info('num model: %s'%len(list_model))
-    model = list_model[0]
+    model = list_model[-2]
     booster = model.booster()
     map_node = defaultdict(int)
     #print(booster.get_dump()[0])
