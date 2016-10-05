@@ -66,18 +66,14 @@ def predict(path):
     pred = []
 
     cnt = 0
-    for j, jj in enumerate(['']):
+    for j, jj in enumerate([1, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         model = list_model[cnt]
         pred.append(model.predict_proba(data[cols])[:, 1])
         cnt += 1
 
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-
     pred = numpy.array(pred).T
-    predict_proba = pred[:, 0] #fin_model.predict_proba(pred)[:, 1]
+    predict_proba = pred[:, -1] #fin_model.predict_proba(pred)[:, 1]
     predict_proba2 = pred.mean(axis=1)
     logger.info('end load')
 

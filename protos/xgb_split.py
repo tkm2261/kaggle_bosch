@@ -92,6 +92,9 @@ if __name__ == '__main__':
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
+    ids = train_data['Id']
+    del train_data
+    gc.collect()
 
     pos_rate = float(sum(target)) / target.shape[0]
     logger.info('shape %s %s' % data.shape)
@@ -126,7 +129,7 @@ if __name__ == '__main__':
     all_target = None
     all_ids = None
 
-    omit_idx = train_data[~train_data['Id'].isin(LIST_OMIT_POS_ID)].index.values
+    omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
     logger.info('cv_start')
@@ -136,14 +139,14 @@ if __name__ == '__main__':
             train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
             logger.info('ommit size: %s %s'%(train_idx.shape[0], len(train_omit_idx)))
             list_estimator = []
-
             ans = []
             insample_ans = []
-            for i in [1, 3, '']:  #
+            for i in [1, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
                 model.set_params(**params)
+                gc.collect()
                 model.fit(data.ix[train_idx, cols], target[train_idx],
                           eval_metric=evalmcc_xgb_min,
                           verbose=False)
@@ -157,11 +160,11 @@ if __name__ == '__main__':
             if all_ans is None:
                 all_ans = ans
                 all_target = target[test_idx]
-                all_ids = train_data.ix[test_idx, 'Id'].values
+                all_ids = ids.ix[test_idx].values
             else:
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, train_data.ix[test_idx, 'Id']]
+                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
 
             model = XGBClassifier(seed=0)
             model.fit(ans, target[test_idx])
@@ -187,9 +190,9 @@ if __name__ == '__main__':
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
-    del train_data
+
     idx = 0
-    for i in [1, 3, '']:
+    for i in [1, '']:
         gc.collect()
         logger.info('model: %s' % i)
         cols = [col for col in feature_column if 'L%s' % i in col]

@@ -69,80 +69,31 @@ def merge(df, feature_column):
 
 if __name__ == '__main__':
     logger.info('load start')
-    # train_data = pandas.read_csv(TRAIN_DATA)
+    from sklearn import datasets
 
-    # train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
-    #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
-    p = Pool()
-    train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
-                                     )).reset_index(drop=True)
-    p.close()
-    p.join()
-    logger.info('shape %s %s' % train_data.shape)
-    feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
-
-    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-
-    target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
-    data = train_data[feature_column].fillna(-10).values
-
-    pos_rate = float(sum(target)) / target.shape[0]
-    logger.info('shape %s %s' % data.shape)
-    logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
+    iris = datasets.load_iris()
+    data = iris.data
+    target = numpy.where(iris.target > 0 , 1, 0)
+    
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
     all_ans = None
     all_target = None
     all_ids = None
 
-    with open('train_feature_1.py', 'w') as f:
-        f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
-    
 
-
-    # Create the model
     x = tf.placeholder(tf.float32, [None, data.shape[1]])
-    W = tf.Variable(tf.zeros([data.shape[1], 2000]))
-    b = tf.Variable(tf.zeros([2000]))
-    h1 = tf.nn.sigmoid(tf.matmul(x, W) + b)
-
-    W2 = tf.Variable(tf.zeros([2000, 1000]))
-    b2 = tf.Variable(tf.zeros([1000]))
-    h2 = tf.nn.sigmoid(tf.matmul(h1, W2) + b2)
-
-    W3 = tf.Variable(tf.zeros([1000, 500]))
-    b3 = tf.Variable(tf.zeros([500]))
-    h3 = tf.nn.sigmoid(tf.matmul(h2, W3) + b3)
-
-    W4 = tf.Variable(tf.zeros([500, 200]))
-    b4 = tf.Variable(tf.zeros([200]))
-    h4 = tf.nn.sigmoid(tf.matmul(h3, W4) + b4)
-    
-    W5 = tf.Variable(tf.zeros([200, 100]))
-    b5 = tf.Variable(tf.zeros([100]))
-    _h5 = tf.nn.sigmoid(tf.matmul(h4, W5) + b5)
-    h5 = tf.nn.dropout(_h5, 0.5)
-
-    W6 = tf.Variable(tf.zeros([100, 10]))
-    b6 = tf.Variable(tf.zeros([10]))
-    _h6 = tf.nn.sigmoid(tf.matmul(h5, W6) + b6)
-    h6 = tf.nn.dropout(_h6, 0.5)
-
-    W7 = tf.Variable(tf.zeros([10, 1]))
-    b7 = tf.Variable(tf.zeros([1]))
-    h7 = tf.matmul(h6, W7) + b7
-
-    y = tf.sigmoid(h7)
-
+    W = tf.Variable(tf.zeros([data.shape[1], 1]))
+    b = tf.Variable(tf.zeros([1]))
+    y = tf.sigmoid(tf.matmul(x, W) + b)
 
     y_ = tf.placeholder(tf.float32, [None, 1])
     x_entropy = -1 * y_ * tf.log(y) - (1 - y_) * tf.log(1 - y) 
     loss = tf.reduce_mean(x_entropy, name='xentropy_mean')
     train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
-    sess = tf.Session()
     init = tf.initialize_all_variables()
+    sess = tf.Session()
     sess.run(init)
+
     logger.info('cv_start')
     for train_idx, test_idx in list(cv)[:1]:
         train_data = data[train_idx]
@@ -151,7 +102,7 @@ if __name__ == '__main__':
         test_target = target[test_idx]
         logger.info('slice')
         for ep in range(100):
-            n_iter = 10
+            n_iter = 5
             batchs = StratifiedKFold(train_target, n_folds=n_iter, shuffle=True, random_state=ep)
             avg_cost = 0.
             logger.info('epock: %s'%ep)

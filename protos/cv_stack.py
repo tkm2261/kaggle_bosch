@@ -121,7 +121,7 @@ if __name__ == '__main__':
                       eval_metric=evalmcc_xgb_min,
                       verbose=False)
             """
-            pred_proba = data[test_idx, 0]#model.predict_proba(data[test_idx])[:, 1]
+            pred_proba = data[test_idx, 1]#model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)
