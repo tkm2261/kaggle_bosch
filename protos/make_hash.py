@@ -31,6 +31,10 @@ def read_csv(filename):
     for df in pandas.read_csv(filename, chunksize=10000):
         df_ret = pandas.DataFrame()
         df = df[LIST_FEATURE_COLUMN_NAME]
+        df[LIST_COLUMN_DATE] -= df[LIST_COLUMN_DATE].mean().values
+        df[LIST_COLUMN_DATE] = numpy.ceil(df[LIST_COLUMN_DATE])
+        df[LIST_COLUMN_NUM] = numpy.ceil(df[LIST_COLUMN_NUM] * 100)
+
         df_ret['hash_all'] = df.apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         df_ret['hash_cat'] = df[LIST_COLUMN_CAT].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         df_ret['hash_num'] = df[LIST_COLUMN_NUM].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
