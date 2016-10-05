@@ -43,5 +43,6 @@ def main():
         df_fi = pandas.merge(df_fi, df_fi2, how='left', left_on='name', right_on='name')
 
     df_fi.to_csv('feature_importances.csv', index=False)
+    return df_fi
 if __name__ == '__main__':
-    main()
+    df = main()
