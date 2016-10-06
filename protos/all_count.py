@@ -71,16 +71,20 @@ if __name__ == '__main__':
     p.join()
 
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+    #feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
 
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-
+    logger.info('load end')
     p = Pool()
     list_series = p.map(make_count, train_data.iteritems())
-    # pandas.DataFrame(list_series).head().to_csv('aaa.csv')
     p.close()
     p.join()
-
-    aaa = pandas.DataFrame(list_series).T
+    logger.info('conv end')
+    aaa = pandas.DataFrame()
+    for series in list_series:
+        aaa[series.name] = series.values
+        del series
+        gc.collect()
+    logger.info('df end')
     aaa[aaa[TARGET_COLUMN_NAME] == aaa[TARGET_COLUMN_NAME]].to_csv('../data/train_etl2/train.csv')
     aaa[aaa[TARGET_COLUMN_NAME] != aaa[TARGET_COLUMN_NAME]].to_csv('../data/test_etl2/test.csv')
