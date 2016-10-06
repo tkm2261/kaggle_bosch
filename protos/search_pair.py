@@ -10,6 +10,7 @@ import gc
 from scipy import stats
 from multiprocessing import Pool
 from feature_orig import LIST_COLUMN_CAT, LIST_COLUMN_NUM, LIST_COLUMN_DATE
+from sklearn.cross_validation import StratifiedKFold
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -44,7 +45,7 @@ def calc_t_score(df, cols1, cols2):
 
     score = numpy.fabs(score)
 
-    return score
+    return cols1, cols2, score
 
 def main(df):
     pairs = [[col] for col in df.columns.values if col != TARGET_COLUMN_NAME and col != 'Id']
@@ -66,21 +67,21 @@ def search(df, pairs):
     merge_cand = None
     for i in range(len(pairs) - 1):
         logger.info('progress: %s/%s'%(i, len(pairs)))
+        p = Pool()
+        list_pross = []
         for j in range(i+1, len(pairs)):
-            logger.info('    progress: %s'%(j))
             cols1 = pairs[i]
             cols2 = pairs[j]
-
-            str1 = ''.join(cols1)
-            str2 = ''.join(cols2)
-            if (str1, str2) in map_cache:
-                t_score = map_cache[str1, str2]
-            else:
-                t_score = calc_t_score(df, cols1, cols2)
-                map_cache[str1, str2] = t_score
-            if t_score >= max_t_score:
-                t_score = max_t_score 
-                merge_cand = [cols1, cols2]
+            merge_cols = cols1 + cols2 + [TARGET_COLUMN_NAME]
+            list_pross.append(p.apply_async(calc_t_score, (df[merge_cols], cols1, cols2)))
+        list_pross = [proc.get() for proc in list_pross]
+        p.close()
+        p.join()
+        list_pross = sorted(list_pross, key=lambda x:x[2], reverse=True)
+        col1, col2, score = list_pross[0]
+        if score >= max_t_score:
+            max_t_score = score
+            merge_cand = [cols1, cols2]
 
     new_pairs = [p for p in pairs if p not in merge_cand]
     ret = []
@@ -101,9 +102,14 @@ def test():
     list_path = sorted(list_path)
     p = Pool()
     data = pandas.concat(p.map(read_csv, list_path)).reset_index(drop=True)
+    target = data[TARGET_COLUMN_NAME].fillna(2)
+    cv = StratifiedKFold(target, n_folds=4, shuffle=True, random_state=0)
+    _, idx = list(cv)[0]
+    data2 = data.ix[idx].copy()
+    del data
     p.close()
     p.join()
-    main(data)
+    main(data2)
 
 if __name__ == '__main__':
     test()
