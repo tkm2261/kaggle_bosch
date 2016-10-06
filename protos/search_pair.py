@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def calc_t_score(df, cols1, cols2):
     merge_cols = cols1 + cols2
     
-    df_hash = df[merge_cols].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+    df_hash = df[merge_cols].astype(str).sum(axis=1)#.apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
     df_hash = pandas.DataFrame(df_hash, columns=['hash'])
     df_hash[TARGET_COLUMN_NAME] = df[TARGET_COLUMN_NAME]
     df_cnt = df_hash.groupby('hash')[['hash']].count()
@@ -38,7 +38,7 @@ def calc_t_score(df, cols1, cols2):
     df_hash = df_hash[df_hash[TARGET_COLUMN_NAME] == df_hash[TARGET_COLUMN_NAME]]
 
     df_hash_pos = df_hash[df_hash[TARGET_COLUMN_NAME] == 1]
-    df_hash_neg = df_hash[df_hash[TARGET_COLUMN_NAME] == 1]
+    df_hash_neg = df_hash[df_hash[TARGET_COLUMN_NAME] == 0]
 
     score= df_hash_pos['cnt'].mean() - df_hash_neg['cnt'].mean()
 
@@ -47,7 +47,7 @@ def calc_t_score(df, cols1, cols2):
     return score
 
 def main(df):
-    pairs = [[col] for col in LIST_FEATURE_COLUMN_NAME]
+    pairs = [[col] for col in df.columns.values if col != TARGET_COLUMN_NAME and col != 'Id']
     with open('pair.txt', 'w') as f:
         f.write('')
     while 1:
@@ -65,7 +65,9 @@ def search(df, pairs):
     max_t_score = 0
     merge_cand = None
     for i in range(len(pairs) - 1):
+        logger.info('progress: %s/%s'%(i, len(pairs)))
         for j in range(i+1, len(pairs)):
+            logger.info('    progress: %s'%(j))
             cols1 = pairs[i]
             cols2 = pairs[j]
 
@@ -94,10 +96,10 @@ def read_csv(filename):
     return pandas.read_csv(filename)
 
 def test():
-    list_path = list(glob.glob(os.path.join(DATA_DIR, 'train_simple_part/*')))
-    list_path += list(glob.glob(os.path.join(DATA_DIR, 'test_simple_part/*')))
+    list_path = list(glob.glob(os.path.join(DATA_DIR, 'train_etl/*')))
+    list_path += list(glob.glob(os.path.join(DATA_DIR, 'test_etl/*')))
     list_path = sorted(list_path)
-    p = Pool(40)
+    p = Pool()
     data = pandas.concat(p.map(read_csv, list_path)).reset_index(drop=True)
     p.close()
     p.join()
