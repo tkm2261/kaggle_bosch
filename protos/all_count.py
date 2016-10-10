@@ -86,5 +86,5 @@ if __name__ == '__main__':
         del series
         gc.collect()
     logger.info('df end')
-    aaa[aaa[TARGET_COLUMN_NAME] == aaa[TARGET_COLUMN_NAME]].to_csv('../data/train_etl2/train.csv')
-    aaa[aaa[TARGET_COLUMN_NAME] != aaa[TARGET_COLUMN_NAME]].to_csv('../data/test_etl2/test.csv')
+    aaa[aaa[TARGET_COLUMN_NAME] == aaa[TARGET_COLUMN_NAME]].to_csv('../data/train_etl2/train.csv.gz', compression='gzip')
+    aaa[aaa[TARGET_COLUMN_NAME] != aaa[TARGET_COLUMN_NAME]].to_csv('../data/test_etl2/test.csv.gz', compression='gzip')

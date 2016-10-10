@@ -17,7 +17,6 @@ from sklearn.metrics import matthews_corrcoef
 from sklearn.cross_validation import StratifiedKFold
 
 
-
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
 
@@ -29,6 +28,7 @@ from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
 from feature_orig import LIST_COLUMN_NUM
 from feature_0928 import LIST_COLUMN_ZERO
+from feature_1009 import LIST_COLUMN_ZERO_MIX
 from omit_pos_id import LIST_OMIT_POS_ID, LIST_OMIT_POS_MIN
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
@@ -61,6 +61,7 @@ def read_csv(filename):
     df = pandas.read_csv(filename)
     return df
 
+
 def make_cross(df, feature_columns):
     mst = pandas.read_csv('cross_term.csv', header=None, index_col=0)[1]
     mst = mst[mst > 500]
@@ -68,8 +69,25 @@ def make_cross(df, feature_columns):
         f1, f2 = pair.split('-')
         df[pair] = df[f1] * df[f2]
         feature_columns.append(pair)
-        logger.info('cross: %s'%pair)
+        logger.info('cross: %s' % pair)
     return df, feature_columns
+
+
+def make_stack(df, feature_columns):
+    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_1.csv')
+
+    new_cols = ['L_pred_%s' % col for col in data.columns.values]
+    data.columns = new_cols
+    feature_columns += new_cols
+
+    data['Id'] = ids
+    df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
+    return df, feature_columns
+
+
+def read_df(df):
+    return df
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -78,17 +96,33 @@ if __name__ == '__main__':
     # train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
     #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
     p = Pool()
+
     train_data = pandas.concat(p.map(read_csv,
                                      glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
                                      )).reset_index(drop=True)
+    train_data_cnt = pandas.concat(p.map(read_df,
+                                         pandas.read_csv(os.path.join(
+                                             DATA_DIR, 'train_etl2/train.csv.gz'), chunksize=10000),
+                                         )).reset_index(drop=True)
     p.close()
     p.join()
     logger.info('shape %s %s' % train_data.shape)
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
+    feature_column_cnt = [col for col in train_data_cnt.columns if col != TARGET_COLUMN_NAME and col != 'Id']
 
+    train_data_cnt = train_data_cnt[[col for col in train_data_cnt.columns.values if col != TARGET_COLUMN_NAME]]
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    #train_data, feature_column = make_cross(train_data, feature_column)
+    train_data = train_data.merge(train_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
+
+    del train_data_cnt
+    gc.collect()
+
+    feature_column += feature_column_cnt
+    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
+    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
+    if os.path.exists('stack_1_data_1.csv'):
+        train_data, feature_column = make_stack(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
@@ -105,23 +139,24 @@ if __name__ == '__main__':
                'scale_pos_weight': 1.}
     _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
                'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    #2016-10-01/12:49:11 __main__ 115 [INFO][<module>] param: {'min_child_weight': 0.01, 'scale_pos_weight': 1, 'n_est
-    #imators': 200, 'max_depth': 9, 'subsample': 1, 'colsample_bytree': 0.5, 'learning_rate': 0.1}
-    #2016-10-01/12:49:11 __main__ 122 [INFO][<module>] model: 2
-    #2016-10-01/12:49:45 __main__ 122 [INFO][<module>] model:
-    #2016-10-01/12:55:12 __main__ 132 [INFO][<module>] train_end
-    #2016-10-01/12:55:17 __main__ 152 [INFO][<module>] pred thresh: 0.235527, score: 0.285598045635
-    #2016-10-01/12:55:17 __main__ 154 [INFO][<module>] mean thresh: 0.0739454, score: 0.268554492546
-    #2016-10-01/12:55:17 __main__ 155 [INFO][<module>] all thresh: 0.157561, score: 0.281773786143
-    #2016-10-01/12:55:17 __main__ 156 [INFO][<module>] score: 0.817277189769
+    # 2016-10-01/12:49:11 __main__ 115 [INFO][<module>] param: {'min_child_weight': 0.01, 'scale_pos_weight': 1, 'n_est
+    # imators': 200, 'max_depth': 9, 'subsample': 1, 'colsample_bytree': 0.5, 'learning_rate': 0.1}
+    # 2016-10-01/12:49:11 __main__ 122 [INFO][<module>] model: 2
+    # 2016-10-01/12:49:45 __main__ 122 [INFO][<module>] model:
+    # 2016-10-01/12:55:12 __main__ 132 [INFO][<module>] train_end
+    # 2016-10-01/12:55:17 __main__ 152 [INFO][<module>] pred thresh: 0.235527, score: 0.285598045635
+    # 2016-10-01/12:55:17 __main__ 154 [INFO][<module>] mean thresh: 0.0739454, score: 0.268554492546
+    # 2016-10-01/12:55:17 __main__ 155 [INFO][<module>] all thresh: 0.157561, score: 0.281773786143
+    # 2016-10-01/12:55:17 __main__ 156 [INFO][<module>] score: 0.817277189769
 
     all_params = {'max_depth': [9],
-                  'n_estimators': [200],
+                  'n_estimators': [150],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
                   'min_child_weight': [0.01],
                   'subsample': [1],
                   'colsample_bytree': [0.5],
+                  'reg_alpha': [0.01],
                   }
 
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
@@ -137,11 +172,11 @@ if __name__ == '__main__':
         logger.info('param: %s' % (params))
         for train_idx, test_idx in list(cv):
             train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
-            logger.info('ommit size: %s %s'%(train_idx.shape[0], len(train_omit_idx)))
+            logger.info('ommit size: %s %s' % (train_idx.shape[0], len(train_omit_idx)))
             list_estimator = []
             ans = []
             insample_ans = []
-            for i in [1, '']:  #
+            for i in [0, 1, 2, 3, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 model = XGBClassifier(seed=0)
@@ -153,6 +188,8 @@ if __name__ == '__main__':
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+            with open('list_xgb_model.pkl', 'wb') as f:
+                pickle.dump(list_estimator, f, -1)
 
             logger.info('train_end')
             ans = numpy.array(ans).T
@@ -184,7 +221,6 @@ if __name__ == '__main__':
             score = roc_auc_score(target[train_idx], pred)
             logger.info('INSAMPLE train score: %s' % score)
 
-                
             list_estimator.append(model)
 
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
@@ -192,7 +228,7 @@ if __name__ == '__main__':
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
 
     idx = 0
-    for i in [1, '']:
+    for i in [0, 1, 2, 3, '']:
         gc.collect()
         logger.info('model: %s' % i)
         cols = [col for col in feature_column if 'L%s' % i in col]

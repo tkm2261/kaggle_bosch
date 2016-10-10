@@ -31,9 +31,9 @@ def read_csv(filename):
     for df in pandas.read_csv(filename, chunksize=10000):
         df_ret = pandas.DataFrame()
         df = df[LIST_FEATURE_COLUMN_NAME]
-        df[LIST_COLUMN_DATE] -= df[LIST_COLUMN_DATE].mean().values
-        df[LIST_COLUMN_DATE] = numpy.ceil(df[LIST_COLUMN_DATE])
-        df[LIST_COLUMN_NUM] = numpy.ceil(df[LIST_COLUMN_NUM] * 100)
+        #df[LIST_COLUMN_DATE] -= df[LIST_COLUMN_DATE].mean().values
+        #df[LIST_COLUMN_DATE] = numpy.ceil(df[LIST_COLUMN_DATE])
+        #df[LIST_COLUMN_NUM] = numpy.ceil(df[LIST_COLUMN_NUM] * 100)
 
         df_ret['hash_all'] = df.apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
         df_ret['hash_cat'] = df[LIST_COLUMN_CAT].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
@@ -52,6 +52,14 @@ def read_csv(filename):
             cols2 = [col for col in cols if col in LIST_COLUMN_DATE]
             df_ret['L%s_hash_cnt_date'%i] = df[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
 
+        for i in range(52):
+            cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'S%s' % i in col]
+            if len(cols) == 0:
+                continue
+            line = cols[0][1]
+            tmp = df[cols]
+            df_ret['L%s_S%s_hash_cnt'%(line, i)] = tmp.apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            
 
         if ret is None:
             ret = df_ret
@@ -93,3 +101,10 @@ if __name__ == '__main__':
         _data.to_csv('../data/hash_table_date_L%s.csv'%i)
 
 
+    for i in range(52):
+        cols = [col for col in LIST_FEATURE_COLUMN_NAME if 'S%s' % i in col]
+        if len(cols) == 0:
+            continue
+        line = cols[0][1]
+        _data = pandas.DataFrame(data['L%s_S%s_hash_cnt'%(line, i)].values, columns=['hash']).groupby('hash')['hash'].count()
+        _data.to_csv('../data/hash_table_date_L%s_S%s.csv'%(line, i))

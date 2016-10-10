@@ -162,6 +162,16 @@ if __name__ == '__main__':
                 }
                 for i in range(4)]
 
+    map_sec_mst = {}
+    for i in range(52):
+        cols = [col for col in num_column if 'S%s' % i in col]
+        if len(cols) == 0:
+            continue
+        line = cols[0][1]
+        col_name = 'L%s_S%s_hash_cnt'%(line, i)
+        feature_column.append(col_name)
+        map_sec_mst[line, i] = pandas.read_csv('../data/hash_table_date_L%s_S%s.csv'%(line, i), header=None, names=[col_name], index_col=0)
+        
 
     feature_column += ['L%s_hash_cnt_cat'%i for i in range(4)]
     feature_column += ['L%s_hash_cnt_num'%i for i in range(4)]
@@ -206,6 +216,17 @@ if __name__ == '__main__':
             aaa = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
             train_data['__hash3_%s__'%i] = aaa
             train_data = pandas.merge(train_data, list_mst[i]['date'], how='left', left_on='__hash3_%s__'%i, right_index=True,  copy=False)
+
+        for i in range(52):
+            cols = [col for col in num_column if 'S%s' % i in col]
+            if len(cols) == 0:
+                continue
+            line = cols[0][1]
+            aaa = train_data[cols2].apply(lambda row: hashlib.sha1((','.join(map(str, row))).encode('utf-8')).hexdigest(), axis=1)
+            train_data['__hash_%s_%s__'%(line, i)] = aaa            
+            train_data = pandas.merge(train_data, map_sec_mst[line, i], how='left', left_on='__hash_%s_%s__'%(line, i), right_index=True,  copy=False)
+
+        train_data = train_data[[col for col in train_data.columns.values if '__hash' not in col]]
         del aaa
         gc.collect()
 

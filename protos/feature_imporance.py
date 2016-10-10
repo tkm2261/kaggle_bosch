@@ -31,18 +31,18 @@ def main():
     from train_feature_1 import LIST_TRAIN_COL
     feature_column = LIST_TRAIN_COL
 
-    logger.info('end load %s'%len(list_model))
+    logger.info('end load %s' % len(list_model))
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_fi = pandas.DataFrame()
     df_fi['name'] = feature_column
-    for j, jj in enumerate([1, '']):
+    for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         df_fi2 = pandas.DataFrame()
         df_fi2['name'] = cols
         df_fi2['model%s' % j] = list_model[j].feature_importances_
         df_fi = pandas.merge(df_fi, df_fi2, how='left', left_on='name', right_on='name')
 
-    df_fi.to_csv('feature_importances.csv', index=False)
+    df_fi.sort_values('model4', ascending=False).to_csv('feature_importances.csv', index=False)
     return df_fi
 if __name__ == '__main__':
     df = main()

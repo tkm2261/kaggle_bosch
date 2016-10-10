@@ -40,42 +40,81 @@ def hash_join(df):
     return df
 
 
+def read_csv(filename):
+    'converts a filename to a pandas dataframe'
+    df = pandas.read_csv(filename)
+    return df
+
+
+def read_df(df):
+    return df
+
+
 def main():
-    logger.info('start load')
-
-    pathes = glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
-    p = Pool()
-    df_ans = pandas.concat(map(predict, pathes)).reset_index(drop=True)
-    p.close()
-    p.join()
-    df_ans.to_csv('submit.csv', index=False)
-
-
-def predict(path):
     feature_column = LIST_TRAIN_COL
     with open('list_xgb_model.pkl', 'rb') as f:
+        list_model2 = pickle.load(f)
+    with open('list_xgb_model_1.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
     with open('stack_model_1.pkl', 'rb') as f:
         fin_model = pickle.load(f)
 
-    df = pandas.read_csv(path)
-    #df = hash_join(df[[col for col in feature_column if '_prob' not in col] + ['Id']])
+    p = Pool()
 
-    data = df[feature_column].fillna(-10)
+    test_data = pandas.concat(p.map(read_csv,
+                                    glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
+                                    )).reset_index(drop=True)
+
+    test_data_cnt = pandas.concat(p.map(read_df,
+                                        pandas.read_csv(os.path.join(
+                                            DATA_DIR, 'test_etl2/test.csv.gz'), chunksize=10000),
+                                        )).reset_index(drop=True)
+    p.close()
+    p.join()
+    logger.info('end load')
+    df = test_data.merge(test_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
+    del test_data
+    del test_data_cnt
+    gc.collect()
+    logger.info('end merge')
+
+    feature_column_1 = [col for col in feature_column if 'L_pred' not in col]
+    data = df[feature_column_1].fillna(-10)
     pred = []
 
     cnt = 0
-    for j, jj in enumerate([1, 3, '']):
-        cols = [col for col in feature_column if 'L%s' % jj in col]
+    for j, jj in enumerate([0, 1, 2, 3, '']):
+        cols = [col for col in feature_column_1 if 'L%s' % jj in col]
         model = list_model[cnt]
         pred.append(model.predict_proba(data[cols])[:, 1])
         cnt += 1
 
+    pred = pandas.DataFrame(numpy.array(pred).T,
+                            columns=['L_pred_%s' % col for col in range(cnt)],
+                            index=df['Id'].values)
+
+    logger.info('end pred1')
+    df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
+    del data
+    gc.collect()
+    data = df[feature_column].fillna(-10)
+    logger.info('end 1')
+    pred = []
+
+    cnt = 0
+    for j, jj in enumerate([0, 1, 2, 3, '']):
+        cols = [col for col in feature_column if 'L%s' % jj in col]
+        model = list_model2[cnt]
+        pred.append(model.predict_proba(data[cols])[:, 1])
+        cnt += 1
+
     pred = numpy.array(pred).T
+
     predict_proba = fin_model.predict_proba(pred)[:, 1]
     predict_proba2 = pred.mean(axis=1)
-    logger.info('end load')
+
+    logger.info('end pred2')
 
     predict = numpy.where(predict_proba >= 0.224, 1, 0)
     logger.info('end predict')
@@ -86,7 +125,7 @@ def predict(path):
     for m in range(pred.shape[1]):
         ans['m%s' % m] = pred[:, m]
 
-    return ans
+    ans.to_csv('submit.csv', index=False)
 
 if __name__ == '__main__':
     main()

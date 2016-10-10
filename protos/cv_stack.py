@@ -94,8 +94,8 @@ if __name__ == '__main__':
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
-    all_params = {'max_depth': [5, 6],
-                  'n_estimators': [100],
+    all_params = {'max_depth': [5],
+                  'n_estimators': [100, 200],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
@@ -116,12 +116,11 @@ if __name__ == '__main__':
             model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
             model.set_params(**params)
-            """
             model.fit(data[train_idx], target[train_idx],
                       eval_metric=evalmcc_xgb_min,
                       verbose=False)
-            """
-            pred_proba = data[test_idx, 1]#model.predict_proba(data[test_idx])[:, 1]
+            #pred_proba = data[test_idx, -1]
+            pred_proba = model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)
