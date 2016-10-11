@@ -89,6 +89,12 @@ def main():
         model = list_model[cnt]
         pred.append(model.predict_proba(data[cols])[:, 1])
         cnt += 1
+        model = list_model[cnt]
+        pred.append(model.predict_proba(data[cols])[:, 1])
+        cnt += 1
+        model = list_model[cnt]
+        pred.append(model.predict_proba(data[cols])[:, 1])
+        cnt += 1
 
     pred = pandas.DataFrame(numpy.array(pred).T,
                             columns=['L_pred_%s' % col for col in range(cnt)],
@@ -105,6 +111,12 @@ def main():
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
+        model = list_model2[cnt]
+        pred.append(model.predict_proba(data[cols])[:, 1])
+        cnt += 1
+        model = list_model2[cnt]
+        pred.append(model.predict_proba(data[cols])[:, 1])
+        cnt += 1
         model = list_model2[cnt]
         pred.append(model.predict_proba(data[cols])[:, 1])
         cnt += 1

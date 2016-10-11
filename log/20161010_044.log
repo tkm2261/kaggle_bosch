@@ -48,7 +48,7 @@ ubuntu@ip-172-31-6-102:~/kaggle_bosch/protos$ python xgb_split.py && cp list_xgb
 2016-10-09/19:43:14 __main__ 215 [INFO][<module>] mean thresh: 0.13507, score: 0.345704322142
 2016-10-09/19:43:14 __main__ 216 [INFO][<module>] all thresh: 0.463976, score: 0.399118474558
 2016-10-09/19:43:14 __main__ 217 [INFO][<module>] score: 0.897847113852
-2016-10-09/19:43:14 __main__ 219 [INFO][<module>] INSAMPLE score: 0.873254070855
+2015-10-09/19:43:14 __main__ 219 [INFO][<module>] INSAMPLE score: 0.873254070855
 2016-10-09/19:43:15 __main__ 222 [INFO][<module>] INSAMPLE train score: 0.997638018424
 2016-10-09/19:43:42 __main__ 233 [INFO][<module>] model: 0
 2016-10-09/19:50:46 __main__ 233 [INFO][<module>] model: 1
