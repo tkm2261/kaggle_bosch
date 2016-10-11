@@ -1,0 +1,228 @@
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ sh run.sh
+2016-10-10/06:32:17 __main__ 94 [INFO][<module>] load start
+b^[[B2016-10-10/06:37:13 __main__ 110 [INFO][<module>] shape 1183747 1595
+2016-10-10/06:38:38 __main__ 135 [INFO][<module>] shape 1183747 2219
+2016-10-10/06:38:39 __main__ 136 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/06:38:40 __main__ 171 [INFO][<module>] cv_start
+2016-10-10/06:38:40 __main__ 173 [INFO][<module>] param: {'max_depth': 9, 'reg_alpha': 0.01, 'subsample': 1, 'min_child_weight': 0.01, 'learning_rate': 0.1, 'scale_pos_weight': 1, 'colsample_bytree': 0.5, 'n_estimators': 150}
+2016-10-10/06:38:40 __main__ 176 [INFO][<module>] ommit size: 789164 788691
+2016-10-10/06:38:40 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/06:41:38 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/06:44:30 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/06:45:12 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/06:48:18 __main__ 181 [INFO][<module>] model:
+2016-10-10/06:58:14 __main__ 195 [INFO][<module>] train_end
+2016-10-10/06:58:20 __main__ 210 [INFO][<module>] model thresh: 0.392091, score: 0.431892342665
+2016-10-10/06:58:20 __main__ 212 [INFO][<module>] max thresh: 0.68685, score: 0.349330614171
+2016-10-10/06:58:21 __main__ 214 [INFO][<module>] min thresh: 0.00307507, score: 0.162247517592
+2016-10-10/06:58:21 __main__ 216 [INFO][<module>] mean thresh: 0.130458, score: 0.342776983795
+2016-10-10/06:58:21 __main__ 217 [INFO][<module>] all thresh: 0.206534, score: 0.416637522651
+2016-10-10/06:58:21 __main__ 218 [INFO][<module>] score: 0.902206970228
+2016-10-10/06:58:21 __main__ 220 [INFO][<module>] INSAMPLE score: 0.867861389602
+2016-10-10/06:58:21 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997560421972
+2016-10-10/06:58:22 __main__ 176 [INFO][<module>] ommit size: 789165 788715
+2016-10-10/06:58:22 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/07:01:11 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/07:04:02 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/07:04:44 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/07:07:50 __main__ 181 [INFO][<module>] model:
+2016-10-10/07:17:44 __main__ 195 [INFO][<module>] train_end
+2016-10-10/07:17:50 __main__ 210 [INFO][<module>] model thresh: 0.349807, score: 0.417165475239
+2016-10-10/07:17:50 __main__ 212 [INFO][<module>] max thresh: 0.633396, score: 0.351103944877
+2016-10-10/07:17:50 __main__ 214 [INFO][<module>] min thresh: 0.0033208, score: 0.166183650936
+2016-10-10/07:17:50 __main__ 216 [INFO][<module>] mean thresh: 0.158391, score: 0.342843210222
+2016-10-10/07:17:51 __main__ 217 [INFO][<module>] all thresh: 0.519528, score: 0.401900999386
+2016-10-10/07:17:51 __main__ 218 [INFO][<module>] score: 0.894311517447
+2016-10-10/07:17:51 __main__ 220 [INFO][<module>] INSAMPLE score: 0.862045937263
+2016-10-10/07:17:51 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997970380749
+2016-10-10/07:17:51 __main__ 176 [INFO][<module>] ommit size: 789165 788712
+2016-10-10/07:17:51 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/07:20:56 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/07:23:52 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/07:24:34 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/07:27:42 __main__ 181 [INFO][<module>] model:
+2016-10-10/07:37:35 __main__ 195 [INFO][<module>] train_end
+2016-10-10/07:37:42 __main__ 210 [INFO][<module>] model thresh: 0.296976, score: 0.413451933918
+2016-10-10/07:37:42 __main__ 212 [INFO][<module>] max thresh: 0.649567, score: 0.347879559534
+2016-10-10/07:37:42 __main__ 214 [INFO][<module>] min thresh: 0.00368337, score: 0.168083198737
+2016-10-10/07:37:43 __main__ 216 [INFO][<module>] mean thresh: 0.164187, score: 0.344238059491
+2016-10-10/07:37:43 __main__ 217 [INFO][<module>] all thresh: 0.387938, score: 0.400360471699
+2016-10-10/07:37:43 __main__ 218 [INFO][<module>] score: 0.899719927661
+2016-10-10/07:37:43 __main__ 220 [INFO][<module>] INSAMPLE score: 0.872427456556
+2016-10-10/07:37:43 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997844467599
+2016-10-10/07:38:04 __main__ 234 [INFO][<module>] model: 0
+2016-10-10/07:41:35 __main__ 234 [INFO][<module>] model: 1
+2016-10-10/07:44:55 __main__ 234 [INFO][<module>] model: 2
+2016-10-10/07:45:49 __main__ 234 [INFO][<module>] model: 3
+2016-10-10/07:49:45 __main__ 234 [INFO][<module>] model:
+2016-10-10/08:01:36 __main__ 94 [INFO][<module>] load start
+2016-10-10/08:06:35 __main__ 110 [INFO][<module>] shape 1183747 1595
+2016-10-10/08:07:14 __main__ 77 [INFO][make_stack] STACKING!!
+2016-10-10/08:08:13 __main__ 135 [INFO][<module>] shape 1183747 2224
+2016-10-10/08:08:15 __main__ 136 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/08:08:16 __main__ 171 [INFO][<module>] cv_start
+2016-10-10/08:08:16 __main__ 173 [INFO][<module>] param: {'max_depth': 9, 'reg_alpha': 0.01, 'subsample': 1, 'min_child_weight': 0.01, 'scale_pos_weight': 1, 'colsample_bytree': 0.5, 'n_estimators': 150, 'learning_rate': 0.1}
+2016-10-10/08:08:16 __main__ 176 [INFO][<module>] ommit size: 789164 788691
+2016-10-10/08:08:16 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/08:11:12 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/08:14:09 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/08:14:49 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/08:17:55 __main__ 181 [INFO][<module>] model:
+2016-10-10/08:27:55 __main__ 195 [INFO][<module>] train_end
+2016-10-10/08:28:01 __main__ 210 [INFO][<module>] model thresh: 0.299358, score: 0.442754024701
+2016-10-10/08:28:02 __main__ 212 [INFO][<module>] max thresh: 0.745129, score: 0.379311667607
+2016-10-10/08:28:02 __main__ 214 [INFO][<module>] min thresh: 0.00307515, score: 0.162991572244
+2016-10-10/08:28:02 __main__ 216 [INFO][<module>] mean thresh: 0.184732, score: 0.353513625667
+2016-10-10/08:28:02 __main__ 217 [INFO][<module>] all thresh: 0.351172, score: 0.430414844907
+2016-10-10/08:28:02 __main__ 218 [INFO][<module>] score: 0.89679221764
+2016-10-10/08:28:02 __main__ 220 [INFO][<module>] INSAMPLE score: 0.866408141658
+2016-10-10/08:28:03 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997213066066
+2016-10-10/08:28:03 __main__ 176 [INFO][<module>] ommit size: 789165 788715
+2016-10-10/08:28:03 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/08:31:00 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/08:33:56 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/08:34:38 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/08:37:45 __main__ 181 [INFO][<module>] model:
+2016-10-10/08:47:46 __main__ 195 [INFO][<module>] train_end
+2016-10-10/08:47:53 __main__ 210 [INFO][<module>] model thresh: 0.385763, score: 0.441727966261
+2016-10-10/08:47:53 __main__ 212 [INFO][<module>] max thresh: 0.775055, score: 0.389662742584
+2016-10-10/08:47:53 __main__ 214 [INFO][<module>] min thresh: 0.00389431, score: 0.167932750105
+2016-10-10/08:47:53 __main__ 216 [INFO][<module>] mean thresh: 0.200448, score: 0.353520433274
+2016-10-10/08:47:54 __main__ 217 [INFO][<module>] all thresh: 0.479883, score: 0.428197454495
+2016-10-10/08:47:54 __main__ 218 [INFO][<module>] score: 0.89095807735
+2016-10-10/08:47:54 __main__ 220 [INFO][<module>] INSAMPLE score: 0.861923823067
+2016-10-10/08:47:54 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997485089332
+2016-10-10/08:47:54 __main__ 176 [INFO][<module>] ommit size: 789165 788712
+2016-10-10/08:47:54 __main__ 181 [INFO][<module>] model: 0
+2016-10-10/08:50:44 __main__ 181 [INFO][<module>] model: 1
+2016-10-10/08:53:38 __main__ 181 [INFO][<module>] model: 2
+2016-10-10/08:54:23 __main__ 181 [INFO][<module>] model: 3
+2016-10-10/08:57:29 __main__ 181 [INFO][<module>] model:
+2016-10-10/09:07:30 __main__ 195 [INFO][<module>] train_end
+2016-10-10/09:07:36 __main__ 210 [INFO][<module>] model thresh: 0.439927, score: 0.438584172919
+2016-10-10/09:07:37 __main__ 212 [INFO][<module>] max thresh: 0.821432, score: 0.384044191074
+2016-10-10/09:07:37 __main__ 214 [INFO][<module>] min thresh: 0.00368337, score: 0.169569153198
+2016-10-10/09:07:37 __main__ 216 [INFO][<module>] mean thresh: 0.218204, score: 0.353705611783
+2016-10-10/09:07:37 __main__ 217 [INFO][<module>] all thresh: 0.371764, score: 0.428107377838
+2016-10-10/09:07:37 __main__ 218 [INFO][<module>] score: 0.894750025296
+2016-10-10/09:07:37 __main__ 220 [INFO][<module>] INSAMPLE score: 0.871471557005
+2016-10-10/09:07:38 __main__ 223 [INFO][<module>] INSAMPLE train score: 0.997082887107
+2016-10-10/09:08:00 __main__ 234 [INFO][<module>] model: 0
+2016-10-10/09:11:32 __main__ 234 [INFO][<module>] model: 1
+2016-10-10/09:14:52 __main__ 234 [INFO][<module>] model: 2
+2016-10-10/09:15:44 __main__ 234 [INFO][<module>] model: 3
+2016-10-10/09:19:41 __main__ 234 [INFO][<module>] model:
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ emacs cv_stack.py
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ python cv_stack.py
+2016-10-10/09:54:50 __main__ 81 [INFO][<module>] load start
+2016-10-10/09:54:52 __main__ 84 [INFO][<module>] load end
+2016-10-10/09:54:52 __main__ 85 [INFO][<module>] shape 1183747 5
+2016-10-10/09:54:52 __main__ 86 [INFO][<module>] shape 1183747
+2016-10-10/09:54:55 __main__ 87 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/09:54:55 __main__ 112 [INFO][<module>] 1/2 param: {'max_depth': 5, 'learning_rate': 0.1, 'scale_pos_weight': 1, 'min_child_weight': 1, 'subsample': 1, 'colsample_bytree': 1, 'n_estimators': 100}
+Traceback (most recent call last):
+  File "cv_stack.py", line 125, in <module>
+    pred_proba = model.predict_proba(data[test_idx])[:, 1]
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/sklearn.py", line 475, in predict_proba
+    class_probs = self.booster().predict(test_dmatrix,
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/sklearn.py", line 163, in booster
+    raise XGBoostError('need to call fit beforehand')
+xgboost.core.XGBoostError: need to call fit beforehand
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ emacs cv_stack.py
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ python cv_stack.py
+2016-10-10/09:55:13 __main__ 81 [INFO][<module>] load start
+2016-10-10/09:55:14 __main__ 84 [INFO][<module>] load end
+2016-10-10/09:55:14 __main__ 85 [INFO][<module>] shape 1183747 5
+2016-10-10/09:55:14 __main__ 86 [INFO][<module>] shape 1183747
+2016-10-10/09:55:18 __main__ 87 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/09:55:18 __main__ 112 [INFO][<module>] 1/2 param: {'colsample_bytree': 1, 'max_depth': 5, 'subsample': 1, 'min_child_weight': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'learning_rate': 0.1}
+2016-10-10/09:55:19 __main__ 136 [INFO][<module>] thresh: 0.479883313179, total score: 0.425267497816, max_score: 0.425267497816
+2016-10-10/09:55:19 __main__ 112 [INFO][<module>] 2/2 param: {'colsample_bytree': 1, 'max_depth': 5, 'subsample': 1, 'min_child_weight': 1, 'scale_pos_weight': 1, 'n_estimators': 200, 'learning_rate': 0.1}
+2016-10-10/09:55:20 __main__ 136 [INFO][<module>] thresh: 0.479883313179, total score: 0.425267497816, max_score: 0.425267497816
+2016-10-10/09:55:20 __main__ 140 [INFO][<module>] best_thresh: 0.479883313179, total max score: 0.425267497816
+^CTraceback (most recent call last):
+  File "cv_stack.py", line 146, in <module>
+    verbose=False)
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/sklearn.py", line 445, in fit
+    verbose_eval=verbose)
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/training.py", line 205, in train
+    xgb_model=xgb_model, callbacks=callbacks)
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/training.py", line 76, in _train_internal
+    bst.update(dtrain, i, obj)
+  File "/home/ubuntu/.pyenv/versions/anaconda3-4.1.1/lib/python3.5/site-packages/xgboost/core.py", line 806, in update
+    _check_call(_LIB.XGBoosterUpdateOneIter(self.handle, iteration, dtrain.handle))
+KeyboardInterrupt
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ emacs cv_stack.py
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ python cv_stack.py
+2016-10-10/09:58:12 __main__ 81 [INFO][<module>] load start
+2016-10-10/09:58:14 __main__ 84 [INFO][<module>] load end
+2016-10-10/09:58:14 __main__ 85 [INFO][<module>] shape 1183747 5
+2016-10-10/09:58:14 __main__ 86 [INFO][<module>] shape 1183747
+2016-10-10/09:58:17 __main__ 87 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/09:58:17 __main__ 112 [INFO][<module>] 1/2 param: {'n_estimators': 100, 'colsample_bytree': 1, 'learning_rate': 0.1, 'max_depth': 5, 'subsample': 1, 'min_child_weight': 1, 'scale_pos_weight': 1}
+2016-10-10/10:00:14 __main__ 136 [INFO][<module>] thresh: 0.408410996199, total score: 0.427839985826, max_score: 0.427839985826
+2016-10-10/10:00:14 __main__ 112 [INFO][<module>] 2/2 param: {'n_estimators': 200, 'colsample_bytree': 1, 'learning_rate': 0.1, 'max_depth': 5, 'subsample': 1, 'min_child_weight': 1, 'scale_pos_weight': 1}
+2016-10-10/10:03:51 __main__ 136 [INFO][<module>] thresh: 0.31738063693, total score: 0.425844239504, max_score: 0.427839985826
+2014-10-10/10:03:51 __main__ 140 [INFO][<module>] best_thresh: 0.408410996199, total max score: 0.427839985826
+ubuntu@ip-172-31-15-117:~/kaggle_bosch/protos$ python cv_stack.py                                               
+2016-10-10/10:18:48 __main__ 81 [INFO][<module>] load start
+2016-10-10/10:18:49 __main__ 84 [INFO][<module>] load end
+2016-10-10/10:18:49 __main__ 85 [INFO][<module>] shape 1183747 5
+2016-10-10/10:18:49 __main__ 86 [INFO][<module>] shape 1183747
+2016-10-10/10:18:53 __main__ 87 [INFO][<module>] pos num: 6879, pos rate: 0.00581120796927046
+2016-10-10/10:18:53 __main__ 113 [INFO][<module>] 1/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:19:32 __main__ 137 [INFO][<module>] thresh: 0.344864040613, total score: 0.424622542488, max_score: 0.424622542488
+2016-10-10/10:19:32 __main__ 113 [INFO][<module>] 2/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.1, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:20:12 __main__ 137 [INFO][<module>] thresh: 0.347878307104, total score: 0.424959683242, max_score: 0.424959683242
+2016-10-10/10:20:12 __main__ 113 [INFO][<module>] 3/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.01, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:20:51 __main__ 137 [INFO][<module>] thresh: 0.344874471426, total score: 0.424622542488, max_score: 0.424959683242
+2016-10-10/10:20:51 __main__ 113 [INFO][<module>] 4/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:22:02 __main__ 137 [INFO][<module>] thresh: 0.32942456007, total score: 0.425472882223, max_score: 0.425472882223
+2016-10-10/10:22:02 __main__ 113 [INFO][<module>] 5/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.1, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:23:18 __main__ 137 [INFO][<module>] thresh: 0.302075773478, total score: 0.42573193006, max_score: 0.42573193006
+2016-10-10/10:23:18 __main__ 113 [INFO][<module>] 6/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.01, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:24:34 __main__ 137 [INFO][<module>] thresh: 0.307917058468, total score: 0.42575113372, max_score: 0.42575113372
+2016-10-10/10:24:34 __main__ 113 [INFO][<module>] 7/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:26:48 __main__ 137 [INFO][<module>] thresh: 0.344535291195, total score: 0.426716236109, max_score: 0.426716236109
+2016-10-10/10:26:48 __main__ 113 [INFO][<module>] 8/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.1, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:29:15 __main__ 137 [INFO][<module>] thresh: 0.338221788406, total score: 0.426079837396, max_score: 0.426716236109
+2016-10-10/10:29:15 __main__ 113 [INFO][<module>] 9/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.01, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:31:39 __main__ 137 [INFO][<module>] thresh: 0.33275577426, total score: 0.426521898457, max_score: 0.426716236109
+2016-10-10/10:31:39 __main__ 113 [INFO][<module>] 10/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:32:37 __main__ 137 [INFO][<module>] thresh: 0.412772864103, total score: 0.427266173649, max_score: 0.427266173649
+2016-10-10/10:32:37 __main__ 113 [INFO][<module>] 11/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.1, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:33:38 __main__ 137 [INFO][<module>] thresh: 0.411333680153, total score: 0.427092075617, max_score: 0.427266173649
+2016-10-10/10:33:38 __main__ 113 [INFO][<module>] 12/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.01, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:34:39 __main__ 137 [INFO][<module>] thresh: 0.423502415419, total score: 0.427261408878, max_score: 0.427266173649
+2016-10-10/10:34:39 __main__ 113 [INFO][<module>] 13/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:36:33 __main__ 137 [INFO][<module>] thresh: 0.408410996199, total score: 0.427839985826, max_score: 0.427839985826
+2016-10-10/10:36:33 __main__ 113 [INFO][<module>] 14/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.1, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:38:32 __main__ 137 [INFO][<module>] thresh: 0.421493858099, total score: 0.428388482188, max_score: 0.428388482188
+2016-10-10/10:38:32 __main__ 113 [INFO][<module>] 15/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.01, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:40:33 __main__ 137 [INFO][<module>] thresh: 0.416616231203, total score: 0.427662125748, max_score: 0.428388482188
+2016-10-10/10:40:33 __main__ 113 [INFO][<module>] 16/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:44:12 __main__ 137 [INFO][<module>] thresh: 0.31738063693, total score: 0.425844239504, max_score: 0.428388482188
+2016-10-10/10:44:12 __main__ 113 [INFO][<module>] 17/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.1, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:48:10 __main__ 137 [INFO][<module>] thresh: 0.408265709877, total score: 0.426676984005, max_score: 0.428388482188
+2016-10-10/10:48:10 __main__ 113 [INFO][<module>] 18/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.01, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:52:05 __main__ 137 [INFO][<module>] thresh: 0.420045107603, total score: 0.427219646163, max_score: 0.428388482188
+2016-10-10/10:52:05 __main__ 113 [INFO][<module>] 19/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:53:20 __main__ 137 [INFO][<module>] thresh: 0.48930901289, total score: 0.426087590252, max_score: 0.428388482188
+2016-10-10/10:53:20 __main__ 113 [INFO][<module>] 20/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.1, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:54:39 __main__ 137 [INFO][<module>] thresh: 0.481537014246, total score: 0.426081052972, max_score: 0.428388482188
+2016-10-10/10:54:39 __main__ 113 [INFO][<module>] 21/27 param: {'colsample_bytree': 1, 'n_estimators': 50, 'reg_alpha': 0.01, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:55:58 __main__ 137 [INFO][<module>] thresh: 0.476675331593, total score: 0.425629565138, max_score: 0.428388482188
+2016-10-10/10:55:58 __main__ 113 [INFO][<module>] 22/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/10:58:29 __main__ 137 [INFO][<module>] thresh: 0.450488895178, total score: 0.425401165661, max_score: 0.428388482188
+2016-10-10/10:58:29 __main__ 113 [INFO][<module>] 23/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.1, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/11:01:10 __main__ 137 [INFO][<module>] thresh: 0.467221498489, total score: 0.426401937171, max_score: 0.428388482188
+2016-10-10/11:01:10 __main__ 113 [INFO][<module>] 24/27 param: {'colsample_bytree': 1, 'n_estimators': 100, 'reg_alpha': 0.01, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/11:03:55 __main__ 137 [INFO][<module>] thresh: 0.464318990707, total score: 0.424782482678, max_score: 0.428388482188
+2016-10-10/11:03:55 __main__ 113 [INFO][<module>] 25/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/11:08:54 __main__ 137 [INFO][<module>] thresh: 0.414123296738, total score: 0.426608116735, max_score: 0.428388482188
+2016-10-10/11:08:54 __main__ 113 [INFO][<module>] 26/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.1, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/11:14:20 __main__ 137 [INFO][<module>] thresh: 0.40912052989, total score: 0.424429668175, max_score: 0.428388482188
+2016-10-10/11:14:20 __main__ 113 [INFO][<module>] 27/27 param: {'colsample_bytree': 1, 'n_estimators': 200, 'reg_alpha': 0.01, 'max_depth': 7, 'min_child_weight': 1, 'subsample': 1, 'learning_rate': 0.1, 'scale_pos_weight': 1}
+2016-10-10/11:19:44 __main__ 137 [INFO][<module>] thresh: 0.397858142853, total score: 0.424675707887, max_score: 0.428388482188
+2016-10-10/11:19:44 __main__ 141 [INFO][<module>] best_thresh: 0.421493858099, total max score: 0.428388482188
+
