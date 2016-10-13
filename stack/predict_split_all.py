@@ -12,6 +12,7 @@ from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSI
 from feature_orig import LIST_COLUMN_NUM
 
 from train_feature_1 import LIST_TRAIN_COL
+from train_feature_2 import LIST_TRAIN_COL as LIST_TRAIN_COL2
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -50,14 +51,18 @@ def read_df(df):
     return df
 
 
+def sigmoid(z):
+    return 1 / (1 + numpy.exp(-z))
+
+
 def main():
     feature_column = LIST_TRAIN_COL
     with open('list_xgb_model.pkl', 'rb') as f:
-        list_model2 = pickle.load(f)
-    with open('list_xgb_model_1.pkl', 'rb') as f:
         list_model = pickle.load(f)
+    with open('list_xgb_model_2.pkl', 'rb') as f:
+        list_model2 = pickle.load(f)
 
-    with open('stack_model_1.pkl', 'rb') as f:
+    with open('stack_model_2.pkl', 'rb') as f:
         fin_model = pickle.load(f)
 
     p = Pool()
@@ -86,24 +91,15 @@ def main():
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in feature_column_1 if 'L%s' % jj in col]
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model[cnt]
-        pred.append(model.decision_function(data[cols]))
-        cnt += 1
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
+        for s in range(int(len(list_model / 5))):
+            model = list_model[cnt]
+            logger.info('(%s, %s)' % (j, s))
+            logger.info('%s' % (model.__repr__()))
+            try:
+                pred.append(model.predict_proba(data[cols])[:, 1])
+            except Exception:
+                pred.append(sigmoid(model.decision_function(data[cols])))
+            cnt += 1
 
     pred = pandas.DataFrame(numpy.array(pred).T,
                             columns=['L_pred_%s' % col for col in range(cnt)],
@@ -113,31 +109,20 @@ def main():
     df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
     del data
     gc.collect()
-    data = df[feature_column].fillna(-10)
+    data = df[LIST_TRAIN_COL2].fillna(-10)
     logger.info('end 1')
     pred = []
 
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
-        cols = [col for col in feature_column if 'L%s' % jj in col]
-        model = list_model2[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model2[cnt]
-        pred.append(model.decision_function(data[cols]))
-        cnt += 1
-        model = list_model2[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model2[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model2[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
-        model = list_model2[cnt]
-        pred.append(model.predict_proba(data[cols])[:, 1])
-        cnt += 1
+        cols = [col for col in LIST_TRAIN_COL2 if 'L%s' % jj in col]
+        for s in range(int(len(list_model2 / 5))):
+            model = list_model2[cnt]
+            try:
+                pred.append(model.predict_proba(data[cols])[:, 1])
+            except Exception:
+                pred.append(sigmoid(model.decision_function(data[cols])))
+            cnt += 1
 
     pred = numpy.array(pred).T
 

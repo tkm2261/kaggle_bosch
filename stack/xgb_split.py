@@ -7,6 +7,7 @@ import numpy
 import glob
 import hashlib
 import gc
+import gzip
 
 from multiprocessing import Pool
 from xgboost import XGBClassifier
@@ -15,9 +16,9 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
 from sklearn.cross_validation import StratifiedKFold
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 from sklearn.svm import LinearSVC
 
 
@@ -77,6 +78,10 @@ def make_cross(df, feature_columns):
     return df, feature_columns
 
 
+def sigmoid(z):
+    return 1 / (1 + numpy.exp(-z))
+
+
 def make_stack(df, feature_columns):
     logger.info('STACKING!!')
     ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
@@ -112,10 +117,6 @@ def read_df(df):
 
 if __name__ == '__main__':
     logger.info('load start')
-    # train_data = pandas.read_csv(TRAIN_DATA)
-
-    # train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
-    #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
     p = Pool()
 
     train_data = pandas.concat(p.map(read_csv,
@@ -128,8 +129,8 @@ if __name__ == '__main__':
     p.close()
     p.join()
     logger.info('shape %s %s' % train_data.shape)
+
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    #feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
     feature_column_cnt = [col for col in train_data_cnt.columns if col != TARGET_COLUMN_NAME and col != 'Id']
 
     train_data_cnt = train_data_cnt[[col for col in train_data_cnt.columns.values if col != TARGET_COLUMN_NAME]]
@@ -138,18 +139,17 @@ if __name__ == '__main__':
 
     del train_data_cnt
     gc.collect()
+    # with open('train_data.pkl.gz', 'wb') as f:
+    #    pickle.dump(train_data, f, -1)
 
     feature_column += feature_column_cnt
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
     feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
-    if os.path.exists('stack_1_data_1.csv'):
-        train_data, feature_column = make_stack(train_data, feature_column)
-
-    #train_data, feature_column = make_magic(train_data, feature_column)
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)
     ids = train_data['Id']
+
     del train_data
     gc.collect()
 
@@ -157,23 +157,8 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % data.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
-    _params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
-               'max_depth': 10, 'min_child_weight': 0.01, 'n_estimators': 300,
-               'scale_pos_weight': 1.}
-    _params = {'subsample': 1, 'scale_pos_weight': 10, 'n_estimators': 100, 'max_depth': 10,
-               'colsample_bytree': 0.3, 'min_child_weight': 1, 'learning_rate': 0.1}
-    # 2016-10-01/12:49:11 __main__ 115 [INFO][<module>] param: {'min_child_weight': 0.01, 'scale_pos_weight': 1, 'n_est
-    # imators': 200, 'max_depth': 9, 'subsample': 1, 'colsample_bytree': 0.5, 'learning_rate': 0.1}
-    # 2016-10-01/12:49:11 __main__ 122 [INFO][<module>] model: 2
-    # 2016-10-01/12:49:45 __main__ 122 [INFO][<module>] model:
-    # 2016-10-01/12:55:12 __main__ 132 [INFO][<module>] train_end
-    # 2016-10-01/12:55:17 __main__ 152 [INFO][<module>] pred thresh: 0.235527, score: 0.285598045635
-    # 2016-10-01/12:55:17 __main__ 154 [INFO][<module>] mean thresh: 0.0739454, score: 0.268554492546
-    # 2016-10-01/12:55:17 __main__ 155 [INFO][<module>] all thresh: 0.157561, score: 0.281773786143
-    # 2016-10-01/12:55:17 __main__ 156 [INFO][<module>] score: 0.817277189769
-
-    all_params = {'max_depth': [10],
-                  'n_estimators': [130],
+    all_params = {'max_depth': [9],
+                  'n_estimators': [150],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
                   'min_child_weight': [0.01],
@@ -190,6 +175,7 @@ if __name__ == '__main__':
     omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
+
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
@@ -214,12 +200,20 @@ if __name__ == '__main__':
                 model = SGDClassifier(loss='hinge', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
                 model.fit(data.ix[train_idx, cols], target[train_idx])
                 list_estimator.append(model)
-                ans.append(model.decision_function(data.ix[test_idx, cols]))
+                ans.append(sigmoid(model.decision_function(data.ix[test_idx, cols])))
                 insample_ans.append(model.decision_function(data.ix[train_idx, cols]))
 
                 logger.info('model rf: %s' % i)
+                model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
+                gc.collect()
+                model.fit(data.ix[train_idx, cols], target[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model rf2: %s' % i)
                 model = RandomForestClassifier(n_estimators=100,
-                                               min_samples_leaf=5,
+                                               min_samples_leaf=10,
                                                n_jobs=-1,
                                                random_state=0)
                 gc.collect()
@@ -229,7 +223,30 @@ if __name__ == '__main__':
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
                 logger.info('model et: %s' % i)
+                model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
+                model.fit(data.ix[train_idx, cols], target[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model et2: %s' % i)
                 model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
+                model.fit(data.ix[train_idx, cols], target[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model m_nb: %s' % i)
+                model = MultinomialNB()
+                gc.collect()
+                model.fit(data.ix[train_idx, cols], target[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model b_nb: %s' % i)
+                model = BernoulliNB()
+                gc.collect()
                 model.fit(data.ix[train_idx, cols], target[train_idx])
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
@@ -277,10 +294,14 @@ if __name__ == '__main__':
             logger.info('max thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
             pred = ans.min(axis=1)
             logger.info('min thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
-            score = roc_auc_score(target[test_idx], ans[:, -1])
+
             logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target[test_idx]))
-            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans[:, -1], target[test_idx]))
-            logger.info('score: %s' % score)
+
+            for j in range(ans.shape[1]):
+                score = roc_auc_score(target[test_idx], ans[:, j])
+                logger.info('score: %s' % score)
+                logger.info('model thresh: %s, score: %s' % mcc_optimize(ans[:, j], target[test_idx]))
+
             score = roc_auc_score(target[test_idx], pred)
             logger.info('INSAMPLE score: %s' % score)
             pred = model.predict_proba(insample_ans)[:, 1]  # ans.max(axis=1)
@@ -293,6 +314,7 @@ if __name__ == '__main__':
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
 
+    list_estimator = [None] * 46
     idx = 0
     for i in [0, 1, 2, 3, '']:
         logger.info('model: %s' % i)
@@ -312,16 +334,43 @@ if __name__ == '__main__':
         idx += 1
 
         logger.info('model rf: %s' % i)
-        model = RandomForestClassifier(n_estimators=100,
-                                       min_samples_leaf=5,
-                                       n_jobs=-1,
-                                       random_state=0)
+        model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model rf2: %s' % i)
+        model = RandomForestClassifier(n_estimators=100, min_samples_leaf=10, n_jobs=-1, random_state=0)
         model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1
 
         logger.info('model et: %s' % i)
+        model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model et2: %s' % i)
         model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model is: %s' % i)
+        model = IsolationForest(n_estimators=100, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model m_nb: %s' % i)
+        model = MultinomialNB()
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model b_nb: %s' % i)
+        model = BernoulliNB()
         model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1
