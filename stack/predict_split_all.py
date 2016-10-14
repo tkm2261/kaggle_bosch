@@ -91,7 +91,7 @@ def main():
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in feature_column_1 if 'L%s' % jj in col]
-        for s in range(int(len(list_model / 5))):
+        for s in range(8):
             model = list_model[cnt]
             logger.info('(%s, %s)' % (j, s))
             logger.info('%s' % (model.__repr__()))
@@ -116,7 +116,7 @@ def main():
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in LIST_TRAIN_COL2 if 'L%s' % jj in col]
-        for s in range(int(len(list_model2 / 5))):
+        for s in range(8):
             model = list_model2[cnt]
             try:
                 pred.append(model.predict_proba(data[cols])[:, 1])

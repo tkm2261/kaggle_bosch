@@ -3,6 +3,8 @@ import os
 import logging
 import pandas
 import pickle
+import re
+
 import numpy
 from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
@@ -39,7 +41,11 @@ if __name__ == '__main__':
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
+    print('model', 'auc_score', 'mcc_thresh', 'score', 'line', sep=',')
     for i in range(data.shape[1]):
+        line = int(i / 8)
         thresh, score = mcc_optimize(data[:, i], target)
         auc_score = roc_auc_score(target, data[:, i])
-        print('"%s"' % list_model[i].__repr__(), auc_score, thresh, score, sep=',')
+        str_model = re.sub(r'\n', '', list_model[i].__repr__())
+        str_model = re.sub(r' +', ' ', str_model)
+        print('"%s"' % str_model, auc_score, thresh, score, line, sep=',')

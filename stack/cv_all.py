@@ -77,10 +77,27 @@ def mcc_scoring2(y_pred_prb, y):
     return idx, max_score
 
 
+def make_data():
+    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
+    target = pandas.read_csv('stack_1_target_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv')
+    data['Id'] = ids
+
+    data[TARGET_COLUMN_NAME] = target
+    logger.info('shape %s %s' % data.shape)
+    ids1 = pandas.read_csv('stack_1_id_1.csv')['0'].values
+    data1 = pandas.read_csv('stack_1_data_1.csv')
+    data1['Id'] = ids1
+    logger.info('shape %s %s' % data1.shape)
+
+    data = data.merge(data1, left_on='Id', right_on='Id', copy=False)
+    return data
+
 if __name__ == '__main__':
     logger.info('load start')
-    target = pandas.read_csv('stack_1_target_2.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_2.csv').values
+    df = make_data()
+    data = df[[col for col in df.columns.values if col != 'Id' and col != TARGET_COLUMN_NAME]].values
+    target = df[TARGET_COLUMN_NAME].values
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)
@@ -94,17 +111,17 @@ if __name__ == '__main__':
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
-    all_params = {'max_depth': [3],
-                  'n_estimators': [200],
+    all_params = {'max_depth': [3, 5, 7],
+                  'n_estimators': [50, 100, 200],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
-                  'reg_alpha': [0.1],
+                  'reg_alpha': [0, 0.1, 0.01],
                   'colsample_bytree': [1],
                   'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
+    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
     best_thresh = None

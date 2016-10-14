@@ -175,7 +175,7 @@ if __name__ == '__main__':
     omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
-
+    """
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
@@ -231,22 +231,6 @@ if __name__ == '__main__':
 
                 logger.info('model et2: %s' % i)
                 model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator.append(model)
-                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
-                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
-
-                logger.info('model m_nb: %s' % i)
-                model = MultinomialNB()
-                gc.collect()
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator.append(model)
-                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
-                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
-
-                logger.info('model b_nb: %s' % i)
-                model = BernoulliNB()
-                gc.collect()
                 model.fit(data.ix[train_idx, cols], target[train_idx])
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
@@ -313,7 +297,9 @@ if __name__ == '__main__':
     pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
     pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
     pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
-
+    """
+    for params in ParameterGrid(all_params):
+        pass
     list_estimator = [None] * 46
     idx = 0
     for i in [0, 1, 2, 3, '']:
@@ -353,24 +339,6 @@ if __name__ == '__main__':
 
         logger.info('model et2: %s' % i)
         model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model is: %s' % i)
-        model = IsolationForest(n_estimators=100, random_state=0, n_jobs=-1)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model m_nb: %s' % i)
-        model = MultinomialNB()
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model b_nb: %s' % i)
-        model = BernoulliNB()
         model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1

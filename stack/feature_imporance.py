@@ -25,17 +25,17 @@ logger = logging.getLogger(__name__)
 
 def main():
     logger.info('start load')
-    with open('list_xgb_model.pkl', 'rb') as f:
+    with open('list_xgb_model_2.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
-    from train_feature_1 import LIST_TRAIN_COL
+    from train_feature_2 import LIST_TRAIN_COL
     feature_column = LIST_TRAIN_COL
 
     logger.info('end load %s' % len(list_model))
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_fi = pandas.DataFrame()
     df_fi['name'] = feature_column
-    for j, jj in enumerate([1, '']):
+    for j, jj in enumerate([0, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         df_fi2 = pandas.DataFrame()
         df_fi2['name'] = cols
