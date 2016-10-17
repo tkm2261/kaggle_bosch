@@ -31,14 +31,14 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     logger.info('load start')
-    target = pandas.read_csv('stack_1_target_1.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_1.csv').values
+    target = pandas.read_csv('stack_1_target_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv').values
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), float(sum(target)) / target.shape[0]))
 
-    with open('list_xgb_model.pkl', 'rb') as f:
+    with open('list_xgb_model_2.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
     print('model', 'auc_score', 'mcc_thresh', 'score', 'line', sep=',')

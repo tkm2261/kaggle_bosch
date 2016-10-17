@@ -42,7 +42,7 @@ def mcc_scoring2(y_pred_prb, y):
     return idx, max_score
 
 
-#@jit
+@jit
 def mcc_optimize(y_prob, y_true):
 
     df = pandas.DataFrame()

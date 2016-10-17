@@ -10,6 +10,7 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -82,15 +83,21 @@ def make_data():
     target = pandas.read_csv('stack_1_target_2.csv')['0'].values
     data = pandas.read_csv('stack_1_data_2.csv')
     data['Id'] = ids
-
     data[TARGET_COLUMN_NAME] = target
     logger.info('shape %s %s' % data.shape)
+
     ids1 = pandas.read_csv('stack_1_id_1.csv')['0'].values
     data1 = pandas.read_csv('stack_1_data_1.csv')
     data1['Id'] = ids1
     logger.info('shape %s %s' % data1.shape)
-
     data = data.merge(data1, left_on='Id', right_on='Id', copy=False)
+
+    ids1 = pandas.read_csv('stack_1_id_3.csv')['0'].values
+    data1 = pandas.read_csv('stack_1_data_3.csv')
+    data1['Id'] = ids1
+    logger.info('shape %s %s' % data1.shape)
+    data = data.merge(data1, left_on='Id', right_on='Id', copy=False)
+
     return data
 
 if __name__ == '__main__':
@@ -119,6 +126,12 @@ if __name__ == '__main__':
                   'reg_alpha': [0, 0.1, 0.01],
                   'colsample_bytree': [1],
                   'scale_pos_weight': [1]}
+
+    all_params = {'max_depth': [10],
+                  'max_features': [12],
+                  'n_estimators': [200],
+                  'min_samples_leaf': [5]}
+
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
@@ -135,13 +148,12 @@ if __name__ == '__main__':
         pred_proba_all = []
         y_true = []
         for train_idx, test_idx in cv:
-            model = XGBClassifier(seed=0)
+            #model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            model = RandomForestClassifier(n_jobs=-1, random_state=0)
             model.set_params(**params)
 
-            model.fit(data[train_idx], target[train_idx],
-                      eval_metric=evalmcc_xgb_min,
-                      verbose=False)
+            model.fit(data[train_idx], target[train_idx])
 
             #pred_proba = data[test_idx, -1]
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -160,12 +172,12 @@ if __name__ == '__main__':
             best_param = params
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
-    model = XGBClassifier(seed=0)
+    #model = XGBClassifier(seed=0)
     #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    model = RandomForestClassifier(n_jobs=-1, random_state=0)
     model.set_params(**best_param)
-    model.fit(data[train_idx], target[train_idx],
-              eval_metric=evalmcc_xgb_min,
-              verbose=False)
 
-    with open('stack_model_2.pkl', 'wb') as f:
+    model.fit(data[train_idx], target[train_idx])
+
+    with open('stack_model_2_st.pkl', 'wb') as f:
         pickle.dump(model, f, -1)

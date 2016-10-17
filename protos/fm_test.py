@@ -20,7 +20,7 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import LinearSVC
 from tffm import TFFMClassifier
-import pylibfm
+from pyfm import pylibfm
 
 from fastFM.sgd import FMClassification
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     # train_data, feature_column = make_magic(train_data, feature_column)
 
-    target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
+    target = train_data[TARGET_COLUMN_NAME].values.astype(int)
     data = train_data[feature_column].fillna(-10)
     ids = train_data['Id']
     del train_data
@@ -160,8 +160,8 @@ if __name__ == '__main__':
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
     all_params = {
-        'num_factors': [5, 10, 50],
-        'num_iter': [10, 50],
+        'num_factors': [5],
+        'num_iter': [10],
     }
 
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
@@ -186,11 +186,18 @@ if __name__ == '__main__':
                 cols = [col for col in feature_column if 'L%s' % i in col]
                 logger.info('model lg: %s' % i)
                 logger.info('model fm: %s' % i)
-                model = pylibfm.FM(verbose=True, task="classification",
-                                   initial_learning_rate=0.1, learning_rate_schedule="optimal")
+                model = model = TFFMClassifier(order=2,
+                                               rank=10,
+                                               optimizer=tf.train.AdamOptimizer(learning_rate=0.01),
+                                               n_epochs=50,
+                                               batch_size=-1,
+                                               init_std=0.001,
+                                               reg=0.001,
+                                               input_type='dense'
+                                               )
                 gc.collect()
-                model.set_params(**params)
-                model.fit(data.ix[train_idx, cols].values, numpy.where(target[train_idx] > 0, 1, 0))
+                # model.set_params(**params)
+                model.fit(data.ix[train_idx, cols].values.astype(numpy.float32), target[train_idx])
                 list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])

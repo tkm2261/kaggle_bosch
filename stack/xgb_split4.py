@@ -34,6 +34,9 @@ from feature_orig import LIST_COLUMN_NUM
 from feature_0928 import LIST_COLUMN_ZERO
 from feature_1009 import LIST_COLUMN_ZERO_MIX
 from feature_1015 import LIST_ZEOO_2
+
+from feature_1017 import LIST_MCC_UP
+
 from omit_pos_id import LIST_OMIT_POS_ID, LIST_OMIT_POS_MIN
 
 from train_feature_1 import LIST_TRAIN_COL
@@ -61,12 +64,6 @@ def hash_groupby(df, feature_column):
 
     df[[col for col in new_feature_column if 'hash' in col]].to_csv('hash_prob.csv', index=True)
     return df, new_feature_column
-
-
-def read_csv(filename):
-    'converts a filename to a pandas dataframe'
-    df = pandas.read_csv(filename)
-    return df
 
 
 def make_cross(df, feature_columns):
@@ -98,6 +95,34 @@ def make_stack(df, feature_columns):
     return df, feature_columns
 
 
+def make_stack2(df, feature_columns):
+    logger.info('STACKING2!!')
+    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv')
+
+    new_cols = ['L0_L1_L2_L3_pred2_%s' % col for col in data.columns.values]
+    data.columns = new_cols
+    feature_columns += new_cols
+
+    data['Id'] = ids
+    df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
+    return df, feature_columns
+
+
+def make_stack3(df, feature_columns):
+    logger.info('STACKING3!!')
+    ids = pandas.read_csv('stack_1_id_3.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_3.csv')
+
+    new_cols = ['L0_L1_L2_L3_pred3_%s' % col for col in data.columns.values]
+    data.columns = new_cols
+    feature_columns += new_cols
+
+    data['Id'] = ids
+    df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
+    return df, feature_columns
+
+
 def make_magic(df, feature_columns):
     logger.info('make magic')
     # df['L_Id'] = df['Id'].values
@@ -112,6 +137,12 @@ def make_magic(df, feature_columns):
     df = df.ix[idx]
     logger.info('shape: %s %s' % df.shape)
     return df, feature_columns
+
+
+def read_csv(filename):
+    'converts a filename to a pandas dataframe'
+    df = pandas.read_csv(filename, usecols=['Id', TARGET_COLUMN_NAME] + LIST_MCC_UP)
+    return df
 
 
 def read_df(df):
@@ -130,6 +161,9 @@ if __name__ == '__main__':
     logger.info('load end')
 
     train_data, feature_column = make_stack(train_data, feature_column)
+    train_data, feature_column = make_stack2(train_data, feature_column)
+    train_data, feature_column = make_stack3(train_data, feature_column)
+
     # feature_column += feature_column_cnt
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
     feature_column = [col for col in feature_column if col not in LIST_ZEOO_2]
@@ -146,8 +180,8 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % data.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
     #{'min_child_weight': 0.1, 'max_depth': 11, 'subsample': 1, 'scale_pos_weight': 1, 'colsample_bytree': 0.5, 'reg_alpha': 0.1, 'learning_rate': 0.1, 'n_estimators': 100}
-    all_params = {'max_depth': [10],
-                  'n_estimators': [100, 130, 150],
+    all_params = {'max_depth': [8],
+                  'n_estimators': [100],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
                   'min_child_weight': [0.01],
@@ -162,8 +196,9 @@ if __name__ == '__main__':
     all_ids = None
 
     omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
-    with open('train_feature_2.py', 'w') as f:
+    with open('train_feature_4.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
+
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
@@ -193,7 +228,7 @@ if __name__ == '__main__':
                 insample_ans.append(model.decision_function(data.ix[train_idx, cols]))
 
                 logger.info('model rf: %s' % i)
-                model = RandomForestClassifier(max_depth=12, n_estimators=100,
+                model = RandomForestClassifier(n_estimators=100,
                                                min_samples_leaf=5, n_jobs=-1, random_state=0)
                 gc.collect()
                 model.fit(data.ix[train_idx, cols], target[train_idx])
@@ -213,7 +248,7 @@ if __name__ == '__main__':
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
                 logger.info('model et: %s' % i)
-                model = ExtraTreesClassifier(max_depth=12, n_estimators=100,
+                model = ExtraTreesClassifier(n_estimators=100,
                                              min_samples_leaf=5, random_state=0, n_jobs=-1)
                 model.fit(data.ix[train_idx, cols], target[train_idx])
                 list_estimator.append(model)
@@ -247,7 +282,7 @@ if __name__ == '__main__':
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
-            with open('list_xgb_model_2.pkl', 'wb') as f:
+            with open('list_xgb_model_4.pkl', 'wb') as f:
                 pickle.dump(list_estimator, f, -1)
 
             logger.info('train_end')
@@ -286,9 +321,9 @@ if __name__ == '__main__':
 
             list_estimator.append(model)
 
-    pandas.DataFrame(all_ans).to_csv('stack_1_data_2.csv', index=False)
-    pandas.DataFrame(all_target).to_csv('stack_1_target_2.csv', index=False)
-    pandas.DataFrame(all_ids).to_csv('stack_1_id_2.csv', index=False)
+    pandas.DataFrame(all_ans).to_csv('stack_1_data_4.csv', index=False)
+    pandas.DataFrame(all_target).to_csv('stack_1_target_4.csv', index=False)
+    pandas.DataFrame(all_ids).to_csv('stack_1_id_4.csv', index=False)
 
     idx = 0
     for i in [0, 1, 2, 3, '']:
@@ -309,7 +344,7 @@ if __name__ == '__main__':
         idx += 1
 
         logger.info('model rf: %s' % i)
-        model = RandomForestClassifier(max_depth=12, n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
+        model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
         model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1
@@ -321,7 +356,7 @@ if __name__ == '__main__':
         idx += 1
 
         logger.info('model et: %s' % i)
-        model = ExtraTreesClassifier(max_depth=12, n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
+        model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
         model.fit(data[cols], target)
         list_estimator[idx] = model
         idx += 1
@@ -345,5 +380,5 @@ if __name__ == '__main__':
         list_estimator[idx] = model
         idx += 1
 
-    with open('list_xgb_model_2.pkl', 'wb') as f:
+    with open('list_xgb_model_4.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)

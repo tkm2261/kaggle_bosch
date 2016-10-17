@@ -19,7 +19,7 @@ CAT_TEST_DATA = os.path.join(DATA_DIR, 'test_categorical2.csv.gz')
 
 NUM_TRAIN_DATA = os.path.join(DATA_DIR, 'train_numeric.csv.gz')
 
-from feature_orig import LIST_COLUMN_CAT
+from feature_orig import LIST_COLUMN_CAT, LIST_COLUMN_NUM
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE, LIST_SAME_COL
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
@@ -103,17 +103,16 @@ def test():
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME
-                      if col not in LIST_DUPLIDATE_CAT]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_DUPLIDATE_DATE]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_SAME_COL]
-    feature_column = [col for col in feature_column
-                      if col in LIST_COLUMN_CAT]
+    feature_column = LIST_COLUMN_NUM
 
-    df = pandas.read_csv(filename, usecols=['Id', 'Response'] + feature_column)
+    df = pandas.read_csv(filename, usecols=['Id', 'Response'] + feature_column, dtype=str)
     return df
+
+
+def read_df(df, i):
+    df.to_csv(os.path.join(DATA_DIR, 'train_rank/train_rank_%s.csv.gz' % i), index=False, compression='gzip')
+    logger.info('load end %s' % i)
+
 
 if __name__ == '__main__':
     test()
@@ -125,8 +124,53 @@ if __name__ == '__main__':
                                      )).reset_index(drop=True)
     p.close()
     p.join()
-    train_data = train_data.fillna(0)
-    train_data = train_data.astype(int)
+
+    def aaa(data_col):
+        col = data_col.columns.values[0]
+        logger.info(col)
+
+        data_col = data_col.rank(method='min').fillna(0).astype(int)
+        #cnt = data_col.groupby(col)[col].count()
+        #cnt = (cnt < 4).index.values
+        #data_col[data_col[col].isin(cnt)] = cnt.min()
+        return data_col
+
+    p = Pool()
+    cols = [col for col in train_data.columns.values if col != 'Id' and col != 'Response']
+    list_col = p.map(aaa, [train_data[[col]] for col in cols])
+    logger.info('p end')
+    ids = train_data['Id'].values
+    target = train_data['Response'].values
+    del train_data
+    gc.collect()
+    p.close()
+    p.join()
+
+    train_data = pandas.concat(list_col, axis=1)
+
+    train_data['Id'] = ids
+    train_data['Response'] = target
+
+    num = 10000
+    res = []
+    p = Pool()
+    idx = train_data.index.values
+    for i in range(int(len(idx) / num) + 1):
+        if i * num > len(idx):
+            break
+
+        if (i + 1) * num > len(idx):
+            ix = idx[i * num:]
+        else:
+            ix = idx[i * num: (i + 1) * num]
+
+        df = train_data.ix[ix]
+        res.append(p.apply_async(read_df, (df, i)))
+        i += 1
+    [r.get() for r in res]
+
+    p.close()
+    p.join()
     logger.info('load data 1 %s %s' % train_data.shape)
 
     id_col = train_data['Id']
@@ -135,27 +179,9 @@ if __name__ == '__main__':
 
     target = train_data['Response']
     chi = ChiExtractor()
-    pd_data = pd_data.values.astype(int)
-    pd_data = numpy.where(pd_data < 0, 0, pd_data).astype(int)
     pd_data = pandas.DataFrame(pd_data, columns=cols)
 
     gc.collect()
     pd_ext_data = chi.fit_transform(pd_data, target)
     pd_ext_data['Id'] = id_col
-    pd_ext_data.to_csv('chi_cat.csv', index=False)
-
-    """
-    logger.info('load data 1')
-    pd_data = pandas.read_csv(CAT_TEST_DATA)
-    logger.info('load data 2')
-    # pd_data = pd_data.apply(lambda x: int(x[1:]))
-    logger.info('load data 3')
-    pd_data = pd_data.fillna(0)
-
-    id_col = pd_data['Id']
-    pd_data = pd_data.ix[:, 1:]
-    chi = ChiExtractor()
-
-    pd_ext_data = chi.fit_transform(pd_data, target)
-    pd_ext_data['Id'] = id_col
-    """
+    pd_ext_data.to_csv('chi_cat_rank.csv', index=False)

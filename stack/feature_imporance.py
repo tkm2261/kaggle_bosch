@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     logger.info('start load')
-    with open('list_xgb_model_2.pkl', 'rb') as f:
+    with open('list_xgb_model_3.pkl', 'rb') as f:
         list_model = pickle.load(f)
 
     from train_feature_2 import LIST_TRAIN_COL
@@ -35,14 +35,15 @@ def main():
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_fi = pandas.DataFrame()
     df_fi['name'] = feature_column
-    for j, jj in enumerate([0, '']):
+    for j, jj in enumerate(['']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         df_fi2 = pandas.DataFrame()
         df_fi2['name'] = cols
-        df_fi2['model%s' % j] = list_model[j].feature_importances_
+        df_fi2['model%s' % j] = list_model[-2].feature_importances_
+
         df_fi = pandas.merge(df_fi, df_fi2, how='left', left_on='name', right_on='name')
 
-    df_fi.sort_values('model1', ascending=False).to_csv('feature_importances.csv', index=False)
+    df_fi.sort_values('model0', ascending=False).to_csv('feature_importances.csv', index=False)
     return df_fi
 if __name__ == '__main__':
     df = main()

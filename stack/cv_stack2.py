@@ -10,6 +10,8 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
+
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -94,17 +96,21 @@ if __name__ == '__main__':
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
-    all_params = {'max_depth': [3],
-                  'n_estimators': [200],
+    all_params = {'max_depth': [5, 10],
+                  'n_estimators': [100],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
                   'reg_alpha': [0.1],
                   'colsample_bytree': [1],
                   'scale_pos_weight': [1]}
+    all_params = {'max_depth': [12],
+                  'max_features': [12],
+                  'n_estimators': [150],
+                  'min_samples_leaf': [5]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
+    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
     best_thresh = None
@@ -118,37 +124,37 @@ if __name__ == '__main__':
         pred_proba_all = []
         y_true = []
         for train_idx, test_idx in cv:
-            model = XGBClassifier(seed=0)
+            #model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            model = RandomForestClassifier(n_jobs=-1, random_state=0)
             model.set_params(**params)
 
-            model.fit(data[train_idx], target[train_idx],
-                      eval_metric=evalmcc_xgb_min,
-                      verbose=False)
+            model.fit(data[train_idx], target[train_idx])
 
-            #pred_proba = data[test_idx, -1]
+            # pred_proba = data[test_idx, -1]
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
+
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)
-            #logger.info('    score: %s' % score)
-            #thresh, score = mcc_scoring(model, data[test_idx], target[test_idx])
+            # logger.info('    score: %s' % score)
+            # thresh, score = mcc_scoring(model, data[test_idx], target[test_idx])
             list_score.append(score)
-            #logger.info('    thresh: %s' % thresh)
+            # logger.info('    thresh: %s' % thresh)
         score = numpy.mean(list_score)
         thresh, score = mcc_optimize(pred_proba_all, y_true)
         max_score = max(max_score, score)
         logger.info('thresh: %s, total score: %s, max_score: %s' % (thresh, score, max_score))
+
         if max_score == score:
             best_param = params
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
-    model = XGBClassifier(seed=0)
-    #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    # model = XGBClassifier(seed=0)
+    # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    model = RandomForestClassifier(n_jobs=-1, random_state=0)
     model.set_params(**best_param)
-    model.fit(data[train_idx], target[train_idx],
-              eval_metric=evalmcc_xgb_min,
-              verbose=False)
+    model.fit(data[train_idx], target[train_idx])
 
     with open('stack_model_2.pkl', 'wb') as f:
         pickle.dump(model, f, -1)

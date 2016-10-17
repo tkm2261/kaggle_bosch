@@ -43,14 +43,13 @@ def sigmoid(z):
 
 
 def main():
-    logger.info('start load')
     feature_column = LIST_TRAIN_COL
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
     with open('list_xgb_model_2.pkl', 'rb') as f:
         list_model2 = pickle.load(f)
 
-    with open('stack_model_2.pkl', 'rb') as f:
+    with open('stack_model_2_st.pkl', 'rb') as f:
         fin_model = pickle.load(f)
 
     p = Pool()
@@ -60,7 +59,7 @@ def main():
                              )).reset_index(drop=True)
     p.close()
     p.join()
-    logger.info('end load %s %s' % df.shape)
+    logger.info('end load')
     gc.collect()
     logger.info('end merge')
 
@@ -81,12 +80,12 @@ def main():
                 pred.append(sigmoid(model.decision_function(data[cols])))
             cnt += 1
 
-    pred = pandas.DataFrame(numpy.array(pred).T,
-                            columns=['L0_L1_L2_L3_pred_%s' % col for col in range(cnt)],
-                            index=df['Id'].values)
+    pred1 = pandas.DataFrame(numpy.array(pred).T,
+                             columns=['L_pred_%s' % col for col in range(cnt)],
+                             index=df['Id'].values)
 
     logger.info('end pred1')
-    df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
+    df = df.merge(pred1, how='left', left_on='Id', right_index=True, copy=False)
     del data
     gc.collect()
     data = df[LIST_TRAIN_COL2].fillna(-10)
@@ -97,8 +96,6 @@ def main():
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in LIST_TRAIN_COL2 if 'L%s' % jj in col]
         for s in range(8):
-            logger.info('(%s, %s)' % (j, s))
-            logger.info('%s' % (model.__repr__()))
             model = list_model2[cnt]
             try:
                 pred.append(model.predict_proba(data[cols])[:, 1])
@@ -106,8 +103,13 @@ def main():
                 pred.append(sigmoid(model.decision_function(data[cols])))
             cnt += 1
 
-    pred = numpy.array(pred).T
-    logger.info('last: %s' % (fin_model.__repr__()))
+    pred2 = numpy.array(pred).T
+    pred2 = pandas.DataFrame(pred2,
+                             columns=['L_pred2_%s' % col for col in range(cnt)],
+                             index=df['Id'].values)
+
+    pred = pred2.merge(pred1, how='left', left_index=True, right_index=True, copy=False)
+    print(pred.columns.values)
     predict_proba = fin_model.predict_proba(pred)[:, 1]
     predict_proba2 = pred.mean(axis=1)
 

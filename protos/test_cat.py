@@ -76,7 +76,9 @@ def mcc_scoring2(y_pred_prb, y):
 if __name__ == '__main__':
     logger.info('load start')
     target = pandas.read_csv('stack_1_target_2.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_2.csv').values
+    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv')
+
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)

@@ -13,6 +13,7 @@ from feature_orig import LIST_COLUMN_NUM
 
 from train_feature_1 import LIST_TRAIN_COL
 from train_feature_2 import LIST_TRAIN_COL as LIST_TRAIN_COL2
+from train_feature_3 import LIST_TRAIN_COL as LIST_TRAIN_COL3
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -49,8 +50,10 @@ def main():
         list_model = pickle.load(f)
     with open('list_xgb_model_2.pkl', 'rb') as f:
         list_model2 = pickle.load(f)
+    with open('list_xgb_model_3.pkl', 'rb') as f:
+        list_model3 = pickle.load(f)
 
-    with open('stack_model_2.pkl', 'rb') as f:
+    with open('stack_model_3.pkl', 'rb') as f:
         fin_model = pickle.load(f)
 
     p = Pool()
@@ -97,9 +100,34 @@ def main():
     for j, jj in enumerate([0, 1, 2, 3, '']):
         cols = [col for col in LIST_TRAIN_COL2 if 'L%s' % jj in col]
         for s in range(8):
-            logger.info('(%s, %s)' % (j, s))
+            logger.info('(2, %s, %s)' % (j, s))
             logger.info('%s' % (model.__repr__()))
             model = list_model2[cnt]
+            try:
+                pred.append(model.predict_proba(data[cols])[:, 1])
+            except Exception:
+                pred.append(sigmoid(model.decision_function(data[cols])))
+            cnt += 1
+    pred = pandas.DataFrame(numpy.array(pred).T,
+                            columns=['L0_L1_L2_L3_pred_%s' % col for col in range(cnt)],
+                            index=df['Id'].values)
+
+    logger.info('end pred2')
+
+    df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
+    del data
+    gc.collect()
+    data = df[LIST_TRAIN_COL3].fillna(-10)
+    logger.info('end 2')
+    pred = []
+
+    cnt = 0
+    for j, jj in enumerate([0, 1, 2, 3, '']):
+        cols = [col for col in LIST_TRAIN_COL3 if 'L%s' % jj in col]
+        for s in range(8):
+            logger.info('(3, %s, %s)' % (j, s))
+            logger.info('%s' % (model.__repr__()))
+            model = list_model3[cnt]
             try:
                 pred.append(model.predict_proba(data[cols])[:, 1])
             except Exception:
@@ -111,7 +139,7 @@ def main():
     predict_proba = fin_model.predict_proba(pred)[:, 1]
     predict_proba2 = pred.mean(axis=1)
 
-    logger.info('end pred2')
+    logger.info('end pred3')
 
     predict = numpy.where(predict_proba >= 0.224, 1, 0)
     logger.info('end predict')

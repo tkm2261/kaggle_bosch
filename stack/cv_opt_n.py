@@ -64,16 +64,9 @@ class MinimizeStopper(object):
             print("Elapsed: %.3f sec" % elapsed)
 
 
-def func(x, model, X, y, start):
+def func(x, X, y, start):
 
-    W = Parallel(n_jobs=-1, verbose=0,
-                 backend="threading")(
-        delayed(parallel_helper)(e, 'predict_proba', X,
-                                 check_input=False)
-        for e in model.estimators_)
-    W = numpy.array([w[:, 1] for w in W]).T
-    # W = numpy.array([m.predict_proba(X)[:, 1] for m in model.estimators_]).T
-    score = numpy.dot(W, x)
+    score = numpy.dot(X, x)
     score = score / score.max()  # sigmoid(score)
     thresh, score = mcc_optimize(score, y)
     if 1:  # numpy.random.random() < 0.1:
@@ -81,7 +74,7 @@ def func(x, model, X, y, start):
 
     if time.time() - start > 1200:
         logger.info('END  thresh: %s, score: %s' % (thresh, score))
-        with open('weight.pkl', 'wb') as f:
+        with open('weight_n.pkl', 'wb') as f:
             pickle.dump(x, f, -1)
         return 'aaa'
     return - score
@@ -95,52 +88,28 @@ class NMOpt:
 
     def fit(self, X, y, seed=0, X_test=None, y_test=None):
         numpy.random.seed(seed)
-        # w_ = numpy.random.random(X.shape[1])
-        # model = LogisticRegression(n_jobs=-1, random_state=0)
-        n_estimators = 120
-        param = {'n_estimators': n_estimators, 'max_features': 12, 'max_depth': 8, 'min_samples_leaf': 5}
-        #param = {'n_estimators': n_estimators, 'max_features': 3, 'max_depth': 5, 'min_samples_leaf': 5}
-        model = RandomForestClassifier(n_jobs=-1, random_state=0)
-        model.set_params(**param)
-        logger.debug('base fit start')
+
+        model = LogisticRegression(n_jobs=-1, random_state=0)
         model.fit(X, y)
-        logger.debug('base fit end')
-        #w_ = numpy.ones(n_estimators)
-        #w_ = numpy.array([m.score(X, y) for m in model.estimators_])
-        #w_ = (w_ / w_.sum()) * w_.shape[0]
+        w_ = model.coef_  # numpy.ones(X.shape[1])
+        #w_ = numpy.zeros(X.shape[1])
+        #w_[w_.shape[0] - 1] = 1.
         logger.debug('init weight end')
-        X = model._validate_X_predict(X)
-        W = Parallel(n_jobs=-1, verbose=0,
-                     backend="threading")(
-            delayed(parallel_helper)(e, 'predict_proba', X,
-                                     check_input=False)
-            for e in model.estimators_)
-        W = numpy.array([w[:, 1] for w in W]).T
-        log = LogisticRegression(n_jobs=-1, random_state=0)
-        log.fit(W, y)
-        w_ = log.coef_
         try:
-            res = minimize(func, w_, args=(model, X, y, time.time()), method='Nelder-Mead',
-                           options={'maxiter': 10, 'maxfev': 10}, callback=print)
+            res = minimize(func, w_, args=(X, y, time.time()), method='Nelder-Mead',
+                           #options={'maxiter': 100, 'maxfev': 100},
+                           callback=print)
             self.w_ = res.x
         except (TypeError, ValueError):
             logger.debug('timeout')
-            with open('weight.pkl', 'rb') as f:
+            with open('weight_n.pkl', 'rb') as f:
                 self.w_ = pickle.load(f)
 
         self.model = model
 
     def predict_proba(self, X):
-        X = self.model._validate_X_predict(X)
-        W = Parallel(n_jobs=-1, verbose=0,
-                     backend="threading")(
-            delayed(parallel_helper)(e, 'predict_proba', X,
-                                     check_input=False)
-            for e in self.model.estimators_)
-        W = numpy.array([w[:, 1] for w in W]).T
-        score = numpy.dot(W, self.w_)
+        score = numpy.dot(X, self.w_)
         score = score / score.max()  # sigmoid(score)
-
         return numpy.array([1 - score, score]).T
 
 
@@ -165,6 +134,7 @@ if __name__ == '__main__':
     logger.info('load start')
     df = make_data()
     data = df[[col for col in df.columns.values if col != 'Id' and col != TARGET_COLUMN_NAME]].values
+    #data = data[:, -7:]
     target = df[TARGET_COLUMN_NAME].values
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)

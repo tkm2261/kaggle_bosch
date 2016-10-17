@@ -19,7 +19,7 @@ CAT_TEST_DATA = os.path.join(DATA_DIR, 'test_categorical2.csv.gz')
 
 NUM_TRAIN_DATA = os.path.join(DATA_DIR, 'train_numeric.csv.gz')
 
-from feature_orig import LIST_COLUMN_CAT
+from feature_orig import LIST_COLUMN_CAT, LIST_COLUMN_NUM, LIST_COLUMN_DATE
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE, LIST_SAME_COL
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
@@ -103,16 +103,9 @@ def test():
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    feature_column = [col for col in LIST_FEATURE_COLUMN_NAME
-                      if col not in LIST_DUPLIDATE_CAT]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_DUPLIDATE_DATE]
-    feature_column = [col for col in feature_column
-                      if col not in LIST_SAME_COL]
-    feature_column = [col for col in feature_column
-                      if col in LIST_COLUMN_CAT]
+    feature_column = [col for col in LIST_COLUMN_NUM]
 
-    df = pandas.read_csv(filename, usecols=['Id', 'Response'] + feature_column)
+    df = pandas.read_csv(filename, usecols=['Id', 'Response'] + feature_column, dtype=numpy.int32)
     return df
 
 if __name__ == '__main__':
@@ -121,7 +114,7 @@ if __name__ == '__main__':
     p = Pool()
 
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_simple_part/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_rank/*'))
                                      )).reset_index(drop=True)
     p.close()
     p.join()
@@ -142,7 +135,7 @@ if __name__ == '__main__':
     gc.collect()
     pd_ext_data = chi.fit_transform(pd_data, target)
     pd_ext_data['Id'] = id_col
-    pd_ext_data.to_csv('chi_cat.csv', index=False)
+    pd_ext_data.to_csv('chi_num.csv.gz', index=False, compression='gzip')
 
     """
     logger.info('load data 1')

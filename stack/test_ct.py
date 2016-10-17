@@ -10,6 +10,8 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
+
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -17,6 +19,8 @@ DATA_DIR = os.path.join(APP_ROOT, 'data')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_simple_join.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
+
+from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
@@ -58,7 +62,10 @@ def mcc_scoring(estimator, X, y):
             idx = thresh
     return max_score
 
+from numba.decorators import jit
 
+
+@jit
 def mcc_scoring2(y_pred_prb, y):
     list_thresh = numpy.arange(1, 100) / 100
     max_score = -1
@@ -66,7 +73,6 @@ def mcc_scoring2(y_pred_prb, y):
     for thresh in list_thresh:
         y_pred = numpy.where(y_pred_prb >= thresh, 1, 0)
         score = mcc(y, y_pred)
-        logger.debug('thresh: %s, score: %s' % (thresh, score))
         if score > max_score:
             max_score = score
             idx = thresh
@@ -75,61 +81,100 @@ def mcc_scoring2(y_pred_prb, y):
 
 if __name__ == '__main__':
     logger.info('load start')
+
     target = pandas.read_csv('stack_1_target_2.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_2.csv').values
+    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv')
+
+    data['Id'] = ids
+
+    data2 = pandas.read_csv('../protos/chi_num.csv.gz')
+    data = data.merge(data2, how='left', left_on='Id', right_on='Id')
+
+    data2 = pandas.read_csv('../protos/chi_cat.csv.gz')
+    data = data.merge(data2, how='left', left_on='Id', right_on='Id')
+
+    data2 = pandas.read_csv('../protos/chi_date.csv.gz')
+    data = data.merge(data2, how='left', left_on='Id', right_on='Id')
+    data = data[[col for col in data.columns.values if col != 'Id']].values
+
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), float(sum(target)) / target.shape[0]))
 
     params = {'subsample': 1, 'learning_rate': 0.1, 'colsample_bytree': 0.3,
-              'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 100,
+              'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 200,
               'scale_pos_weight': 10}
 
-    all_params = {'max_depth': [5],
-                  'n_estimators': [100],
+    # 4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4}
+    # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
+    # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
+
+    all_params = {'max_depth': [10],
+                  'n_estimators': [200],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
                   'subsample': [1],
-                  'colsample_bytree': [0.3],
-                  'scale_pos_weight': [10]}
-    all_params = {'C': [10**i for i in range(-3, 2)],
-                  'penalty': ['l2']}
-    cv = StratifiedKFold(target, n_folds=10, shuffle=True, random_state=0)
+                  'reg_alpha': [0.1],
+                  'colsample_bytree': [1],
+                  'scale_pos_weight': [1]}
+    _all_params = {'max_depth': [10],
+                   'max_features': [12],
+                   'n_estimators': [150],
+                   'min_samples_leaf': [5]}
+    _all_params = {'C': [10**i for i in range(-3, 2)],
+                   'penalty': ['l2']}
+    cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
-
+    best_thresh = None
     pg = list(ParameterGrid(all_params))
+
+    """
+    for i in range(data.shape[1]):
+        thresh, score = mcc_optimize(data[:, i], target)
+        logger.info('model:%s, thresh: %s, total score: %s, max_score: %s' % (i, thresh, score, max_score))
+    """
     for i, params in enumerate(pg):
         logger.info('%s/%s param: %s' % (i + 1, len(pg), params))
         pred_proba_all = []
         y_true = []
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
-            model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            # model = RandomForestClassifier(n_jobs=-1, random_state=0)
             model.set_params(**params)
+
             model.fit(data[train_idx], target[train_idx])
+
+            # pred_proba = data[test_idx, -1]
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
+
             y_true = numpy.r_[y_true, target[test_idx]]
             score = roc_auc_score(target[test_idx], pred_proba)
-            #logger.info('    score: %s' % score)
-            #thresh, score = mcc_scoring(model, data[test_idx], target[test_idx])
+            thresh, score = mcc_optimize(pred_proba, target[test_idx])
+            logger.info('    thresh: %s, score: %s' % (thresh, score))
+
+            # logger.info('    score: %s' % score)
+            # thresh, score = mcc_scoring(model, data[test_idx], target[test_idx])
             list_score.append(score)
-            #logger.info('    thresh: %s' % thresh)
+            # logger.info('    thresh: %s' % thresh)
         score = numpy.mean(list_score)
-        thresh, score = mcc_scoring2(pred_proba_all, y_true)
+        thresh, score = mcc_optimize(pred_proba_all, y_true)
         max_score = max(max_score, score)
-        logger.info('thresh: %s' % thresh)
-        logger.info('total score: %s, max_score: %s' % (score, max_score))
+        logger.info('thresh: %s, total score: %s, max_score: %s' % (thresh, score, max_score))
+
         if max_score == score:
             best_param = params
-
-    logger.info('total max score: %s' % max_score)
-    model = XGBClassifier(seed=0)
-    model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+            best_thresh = thresh
+    logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
+    # model = XGBClassifier(seed=0)
+    # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
+    model = RandomForestClassifier(n_jobs=-1, random_state=0)
     model.set_params(**best_param)
-    model.fit(data, target)
+    model.fit(data[train_idx], target[train_idx])
 
     with open('stack_model_2.pkl', 'wb') as f:
         pickle.dump(model, f, -1)
