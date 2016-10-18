@@ -83,6 +83,10 @@ if __name__ == '__main__':
     logger.info('load start')
     target = pandas.read_csv('stack_1_target_4.csv')['0'].values
     data = pandas.read_csv('stack_1_data_4.csv').values
+    #idx = [3, 5, 11, 12, 20, 21, 26, 27, 28, 29, 34, 35, 36, 37]
+    idx = [12, 21]
+    data = data[:, idx]
+
     logger.info('load end')
     logger.info('shape %s %s' % data.shape)
     logger.info('shape %s' % target.shape)
@@ -92,24 +96,27 @@ if __name__ == '__main__':
               'max_depth': 3, 'min_child_weight': 0.01, 'n_estimators': 200,
               'scale_pos_weight': 10}
 
-    # 4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4}
-    # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
-    # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
+    # 2016-10-18/04:19:44 __main__ 129 [INFO][<module>] 54/168 param: {'fit_intercept': True, 'C': 0.1, 'class_weight': 'balanced', 'penalty': 'l2', 'intercept_scaling': 0.01}
+    # 2016-10-18/04:20:01 __main__ 153 [INFO][<module>] thresh:
+    # 0.999999978317, total score: 0.451932040195, max_score: 0.451932040195
 
-    all_params = {'max_depth': [5, 10],
-                  'n_estimators': [100],
-                  'learning_rate': [0.1],
-                  'min_child_weight': [1],
-                  'subsample': [1],
-                  'reg_alpha': [0.1],
-                  'colsample_bytree': [1],
-                  'scale_pos_weight': [1]}
-    all_params = {'max_depth': [12],
-                  'max_features': [12],
-                  'n_estimators': [150],
-                  'min_samples_leaf': [5]}
-    _all_params = {'C': [10**i for i in range(-3, 2)],
-                   'penalty': ['l2']}
+    _all_params = {'max_depth': [5, 10],
+                   'n_estimators': [100],
+                   'learning_rate': [0.1],
+                   'min_child_weight': [1],
+                   'subsample': [1],
+                   'reg_alpha': [0.1],
+                   'colsample_bytree': [1],
+                   'scale_pos_weight': [1]}
+    _all_params = {'max_depth': [12],
+                   'max_features': [12],
+                   'n_estimators': [150],
+                   'min_samples_leaf': [5]}
+    all_params = {'C': [1, 0.1, 0.01],
+                  'penalty': ['l2'],
+                  'fit_intercept': [True],
+                  'class_weight': [None],
+                  'intercept_scaling': [1]}
     cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
     list_score = []
     max_score = -100
@@ -125,14 +132,14 @@ if __name__ == '__main__':
         y_true = []
         for train_idx, test_idx in cv:
             #model = XGBClassifier(seed=0)
-            #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-            model = RandomForestClassifier(n_jobs=-1, random_state=0)
+            model = LogisticRegression(n_jobs=-1, random_state=0)
+            #model = RandomForestClassifier(n_jobs=-1, random_state=0)
             model.set_params(**params)
 
-            model.fit(data[train_idx], target[train_idx])
+            #model.fit(data[train_idx], target[train_idx])
 
-            # pred_proba = data[test_idx, -1]
-            pred_proba = model.predict_proba(data[test_idx])[:, 1]
+            pred_proba = data[test_idx].max(axis=1)
+            #pred_proba = model.predict_proba(data[test_idx])[:, 1]
             pred_proba_all = numpy.r_[pred_proba_all, pred_proba]
 
             y_true = numpy.r_[y_true, target[test_idx]]
@@ -150,9 +157,9 @@ if __name__ == '__main__':
             best_param = params
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
-    # model = XGBClassifier(seed=0)
-    # model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-    model = RandomForestClassifier(n_jobs=-1, random_state=0)
+    #model = XGBClassifier(seed=0)
+    model = LogisticRegression(n_jobs=-1, random_state=0)
+    #model = RandomForestClassifier(n_jobs=-1, random_state=0)
     model.set_params(**best_param)
     model.fit(data[train_idx], target[train_idx])
 

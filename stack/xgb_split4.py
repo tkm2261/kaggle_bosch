@@ -83,8 +83,8 @@ def sigmoid(z):
 
 def make_stack(df, feature_columns):
     logger.info('STACKING!!')
-    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_1.csv')
+    ids = pandas.read_csv('stack_1_id_1.csv.gz')['0'].values
+    data = pandas.read_csv('stack_1_data_1.csv.gz')
 
     new_cols = ['L0_L1_L2_L3_pred_%s' % col for col in data.columns.values]
     data.columns = new_cols
@@ -97,8 +97,8 @@ def make_stack(df, feature_columns):
 
 def make_stack2(df, feature_columns):
     logger.info('STACKING2!!')
-    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_2.csv')
+    ids = pandas.read_csv('stack_1_id_2.csv.gz')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv.gz')
 
     new_cols = ['L0_L1_L2_L3_pred2_%s' % col for col in data.columns.values]
     data.columns = new_cols
@@ -111,8 +111,8 @@ def make_stack2(df, feature_columns):
 
 def make_stack3(df, feature_columns):
     logger.info('STACKING3!!')
-    ids = pandas.read_csv('stack_1_id_3.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_3.csv')
+    ids = pandas.read_csv('stack_1_id_3.csv.gz')['0'].values
+    data = pandas.read_csv('stack_1_data_3.csv.gz')
 
     new_cols = ['L0_L1_L2_L3_pred3_%s' % col for col in data.columns.values]
     data.columns = new_cols
@@ -165,9 +165,9 @@ if __name__ == '__main__':
     train_data, feature_column = make_stack3(train_data, feature_column)
 
     # feature_column += feature_column_cnt
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
-    feature_column = [col for col in feature_column if col not in LIST_ZEOO_2]
-    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
+    #feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
+    #feature_column = [col for col in feature_column if col not in LIST_ZEOO_2]
+    #feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
 
     target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
     data = train_data[feature_column].fillna(-10)

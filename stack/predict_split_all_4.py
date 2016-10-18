@@ -112,7 +112,7 @@ def main():
                 pred.append(sigmoid(model.decision_function(data[cols])))
             cnt += 1
     pred = pandas.DataFrame(numpy.array(pred).T,
-                            columns=['L0_L1_L2_L3_pred_%s' % col for col in range(cnt)],
+                            columns=['L0_L1_L2_L3_pred2_%s' % col for col in range(cnt)],
                             index=df['Id'].values)
 
     logger.info('end pred2')
@@ -138,6 +138,9 @@ def main():
             cnt += 1
 
     logger.info('end pred3')
+    pred = pandas.DataFrame(numpy.array(pred).T,
+                            columns=['L0_L1_L2_L3_pred3_%s' % col for col in range(cnt)],
+                            index=df['Id'].values)
 
     df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
     del data
@@ -161,7 +164,8 @@ def main():
 
     pred = numpy.array(pred).T
     logger.info('last: %s' % (fin_model.__repr__()))
-    predict_proba = fin_model.predict_proba(pred)[:, 1]
+    #predict_proba = fin_model.predict_proba(pred)[:, 1]
+    predict_proba = pred[:, [12, 21]].max(axis=1)
     predict_proba2 = pred.mean(axis=1)
 
     logger.info('end pred3')

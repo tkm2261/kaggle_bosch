@@ -86,8 +86,8 @@ def sigmoid(z):
 
 def make_stack(df, feature_columns):
     logger.info('STACKING!!')
-    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values
-    data = pandas.read_csv('stack_1_data_1.csv')
+    ids = pandas.read_csv('stack_1_id_1.csv.gz')['0'].values
+    data = pandas.read_csv('stack_1_data_1.csv.gz')
 
     new_cols = ['L0_L1_L2_L3_pred_%s' % col for col in data.columns.values]
     data.columns = new_cols
@@ -164,6 +164,7 @@ if __name__ == '__main__':
     omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
     with open('train_feature_2.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
+    exit()
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
