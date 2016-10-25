@@ -90,8 +90,9 @@ def main():
     pred = pandas.DataFrame(numpy.array(pred).T,
                             columns=['L0_L1_L2_L3_pred_%s' % col for col in range(cnt)],
                             index=df['Id'].values)
-
+    pred.to_csv('pred_stack_1.csv')
     logger.info('end pred1')
+    exit()
     df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
     del data
     gc.collect()

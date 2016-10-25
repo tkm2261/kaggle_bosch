@@ -205,11 +205,11 @@ if __name__ == '__main__':
             if all_ans is None:
                 all_ans = ans
                 all_target = target[test_idx]
-                all_ids = ids.ix[test_idx].values
+                all_ids = data.ix[test_idx].index.values.astype(int)
             else:
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
+                all_ids = numpy.r_[all_ids, data.ix[test_idx].index.values.astype(int)]
 
             score = roc_auc_score(target[test_idx], ans)
             logger.info('score: %s' % score)

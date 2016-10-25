@@ -1,11 +1,13 @@
 # encoding: utf-8
-import sys
+
 import os
 import pandas
 import numpy
 import logging
 import gc
 import glob
+import pickle
+import gzip
 
 from multiprocessing import Pool
 from sklearn.preprocessing import OneHotEncoder
@@ -29,12 +31,10 @@ logging.basicConfig(format=log_fmt,
 
 logger = logging.getLogger(__name__)
 
-START = int(sys.argv[1])
-
 
 class ChiExtractor:
 
-    def __init__(self, n_feature=1000):
+    def __init__(self, n_feature=500):
         self.enc = OneHotEncoder(dtype=numpy.int32, handle_unknown='ignore')
         self.n_feature = n_feature
 
@@ -54,7 +54,7 @@ class ChiExtractor:
         logger.info('start chi2 test')
         chi_socre, p_val = chi2(enc_data, target)
         logger.info('end chi2 test')
-        selected_idx = numpy.argsort(chi_socre)[::-1][START - self.n_feature:START]
+        selected_idx = numpy.argsort(chi_socre)[::-1][:self.n_feature]
 
         logger.info('p val: %s ~ %s' % (p_val[selected_idx][0], p_val[selected_idx][-1]))
         enc_data = enc_data[:, selected_idx].todense()
@@ -111,13 +111,12 @@ def read_csv(filename):
     return df.astype(numpy.int32)
 
 if __name__ == '__main__':
-    # test()
+    test()
     logger.info('load data 0')
     p = Pool()
 
     all_data = pandas.concat(p.map(read_csv,
-                                   glob.glob(os.path.join(DATA_DIR, 'train_rank/*')) +
-                                   glob.glob(os.path.join(DATA_DIR, 'test_rank/*'))
+                                   glob.glob(os.path.join(DATA_DIR, 'train_rank/*'))
                                    )).reset_index(drop=True)
     p.close()
     p.join()
@@ -130,30 +129,32 @@ if __name__ == '__main__':
                           'Id' and col != 'Response']].astype(numpy.int32)
     cols = pd_data.columns.values
 
-    target = train_data['Response']
+    target = train_data['Response'].values
     chi = ChiExtractor()
     pd_data = numpy.where(pd_data < 0, 0, pd_data)
     pd_data = pandas.DataFrame(pd_data, columns=cols)
 
     gc.collect()
-    pd_ext_data = chi.fit_transform(pd_data, target)
-    pd_ext_data['Id'] = id_col
-    pd_ext_data.to_csv('train_chi_all_%s.csv.gz' % START, index=False, compression='gzip')
+    pd_ext_data = chi.enc.fit_transform(pd_data)
+    ids = id_col.values
+    with gzip.open('sp_train.pkl', 'wb') as f:
+        pickle.dump(pd_ext_data, f, -1)
+    with gzip.open('sp_train_ids.pkl.gz', 'wb') as f:
+        pickle.dump([ids, target], f, -1)
 
     del train_data
     gc.collect()
     test_data = all_data[all_data['Response'] == 2]
-    del all_data
-    gc.collect()
-
-    id_col = test_data['Id']
     pd_data = test_data[[col for col in test_data.columns.values if col !=
                          'Id' and col != 'Response']].astype(numpy.int32)
     pd_data = pd_data.values
-    pd_data = numpy.where(pd_data < 0, 0, pd_data)
-    pd_ext_data = chi.transform(pd_data)
-    pd_ext_data['Id'] = id_col
-    pd_ext_data.to_csv('test_chi_all_%s.csv.gz' % START, index=False, compression='gzip')
+    pd_ext_data = chi.enc.transform(pd_data)
+    id_col = test_data['Id']
+    ids = id_col.values
+    with gzip.open('sp_test.pkl', 'wb') as f:
+        pickle.dump(pd_ext_data, f, -1)
+    with gzip.open('sp_test_ids.pkl.gz', 'wb') as f:
+        pickle.dump([ids, target], f, -1)
 
     """
     logger.info('load data 1')

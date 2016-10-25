@@ -7,6 +7,7 @@ import numpy
 import glob
 import hashlib
 import gc
+import gzip
 
 from multiprocessing import Pool
 from xgboost import XGBClassifier
@@ -21,6 +22,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import LinearSVC
 from tffm import TFFMClassifier
 from pyfm import pylibfm
+
+from sklearn.preprocessing import OneHotEncoder
 
 from fastFM.sgd import FMClassification
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
@@ -93,68 +96,33 @@ def make_stack(df, feature_columns):
     return df, feature_columns
 
 
-def make_magic(df, feature_columns):
-    logger.info('make magic')
-    # df['L_Id'] = df['Id'].values
-    # feature_column.append('L_Id')
-
-    idx = df.index.values
-    df.sort_values('L_D_MIN', inplace=True)
-
-    df['L_MAGIC3'] = df['Id'].diff().values
-    feature_column.append('L_MAGIC3')
-
-    df = df.ix[idx]
-    logger.info('shape: %s %s' % df.shape)
-    return df, feature_columns
-
-
 def read_df(df):
     return df
 
 if __name__ == '__main__':
     logger.info('load start')
-    # train_data = pandas.read_csv(TRAIN_DATA)
-
-    # train_data = pandas.concat(pandas.read_csv(path) for path in glob.glob(
-    #    os.path.join(DATA_DIR, 'train_etl/*'))).reset_index(drop=True)
     p = Pool()
 
-    train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
-                                     )).reset_index(drop=True)
-    train_data_cnt = pandas.concat(p.map(read_df,
-                                         pandas.read_csv(os.path.join(
-                                             DATA_DIR, 'train_etl2/train.csv.gz'), chunksize=10000),
-                                         )).reset_index(drop=True)
+    all_data = pandas.concat(p.map(read_csv,
+                                   glob.glob(os.path.join(DATA_DIR, 'train_rank/*'))
+                                   )).reset_index(drop=True)
     p.close()
     p.join()
-    logger.info('shape %s %s' % train_data.shape)
-    feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    # feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
-    feature_column_cnt = [col for col in train_data_cnt.columns if col != TARGET_COLUMN_NAME and col != 'Id']
+    all_data = all_data.fillna(0)
+    enc = OneHotEncoder(dtype=numpy.int32, handle_unknown='ignore')
 
-    train_data_cnt = train_data_cnt[[col for col in train_data_cnt.columns.values if col != TARGET_COLUMN_NAME]]
-    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    train_data = train_data.merge(train_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
+    target = all_data[TARGET_COLUMN_NAME].values
+    #target = numpy.where(target > 0, 1, -1)
 
-    del train_data_cnt
+    ids = all_data['Id'].values
+    all_data = all_data[[col for col in all_data.columns.values if col != TARGET_COLUMN_NAME and col != 'Id']]
+    data = enc.fit_transform(all_data)
+    del all_data
     gc.collect()
 
-    feature_column += feature_column_cnt
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
-    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
-    if os.path.exists('stack_1_data_1.csv'):
-        train_data, feature_column = make_stack(train_data, feature_column)
+    from sklearn.datasets import dump_svmlight_file
 
-    # train_data, feature_column = make_magic(train_data, feature_column)
-
-    target = train_data[TARGET_COLUMN_NAME].values.astype(int)
-    data = train_data[feature_column].fillna(-10)
-    ids = train_data['Id']
-    del train_data
-    gc.collect()
-
+    logger.info('load end')
     pos_rate = float(sum(target)) / target.shape[0]
     logger.info('shape %s %s' % data.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
@@ -168,124 +136,34 @@ if __name__ == '__main__':
     all_ans = None
     all_target = None
     all_ids = None
-
-    omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
-    with open('train_feature_1.py', 'w') as f:
-        f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
+    from io import BytesIO
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
         for train_idx, test_idx in list(cv)[:1]:
-            train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
-            logger.info('ommit size: %s %s' % (train_idx.shape[0], len(train_omit_idx)))
-            list_estimator = []
-            ans = []
-            insample_ans = []
-            for i in [1, '']:  #
-                logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
-                logger.info('model lg: %s' % i)
-                logger.info('model fm: %s' % i)
-                model = model = TFFMClassifier(order=2,
-                                               rank=10,
-                                               optimizer=tf.train.AdamOptimizer(learning_rate=0.01),
-                                               n_epochs=50,
-                                               batch_size=-1,
-                                               init_std=0.001,
-                                               reg=0.001,
-                                               input_type='dense'
-                                               )
-                gc.collect()
-                # model.set_params(**params)
-                model.fit(data.ix[train_idx, cols].values.astype(numpy.float32), target[train_idx])
-                list_estimator.append(model)
-                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
-                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+            with gzip.open('train_fm.svm', 'wb') as f:
+                dump_svmlight_file(data[train_idx], target[train_idx], f)
+            del output
+            gc.collect()
+            with gzip.open('test_svm.svm', 'wb') as f:
+                dump_svmlight_file(data[test_idx], target[test_idx], f)
 
-            with open('list_xgb_model.pkl', 'wb') as f:
-                pickle.dump(list_estimator, f, -1)
+            model = TFFMClassifier(order=2,
+                                   rank=10,
+                                   optimizer=tf.train.AdamOptimizer(learning_rate=0.01),
+                                   n_epochs=50,
+                                   batch_size=100000,
+                                   init_std=0.001,
+                                   reg=0.001,
+                                   input_type='sparse'
+                                   )
+            """
+            model = FMClassification()
+            """
+            model.fit(data[train_idx], target[train_idx], show_progress=True)
+            ans = model.predict_proba(data[test_idx])[:, 1]
 
-            logger.info('train_end')
-            ans = numpy.array(ans).T
-            insample_ans = numpy.array(insample_ans).T
-            if all_ans is None:
-                all_ans = ans
-                all_target = target[test_idx]
-                all_ids = ids.ix[test_idx].values
-            else:
-                all_ans = numpy.r_[all_ans, ans]
-                all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
-
-            model = XGBClassifier(seed=0)
-            model.fit(ans, target[test_idx])
-            pred = model.predict_proba(ans)[:, 1]
-            logger.info('model thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
-            pred = ans.max(axis=1)
-            logger.info('max thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
-            pred = ans.min(axis=1)
-            logger.info('min thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx]))
-            score = roc_auc_score(target[test_idx], ans[:, -1])
-            logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target[test_idx]))
-            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans[:, -1], target[test_idx]))
+            score = roc_auc_score(target[test_idx], ans)
             logger.info('score: %s' % score)
-            score = roc_auc_score(target[test_idx], pred)
-            logger.info('INSAMPLE score: %s' % score)
-            pred = model.predict_proba(insample_ans)[:, 1]  # ans.max(axis=1)
-            score = roc_auc_score(target[train_idx], pred)
-            logger.info('INSAMPLE train score: %s' % score)
-
-            list_estimator.append(model)
-
-    pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
-    pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
-    pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
-
-    idx = 0
-    for i in [0, 1, 2, 3, '']:
-        logger.info('model: %s' % i)
-        cols = [col for col in feature_column if 'L%s' % i in col]
-
-        gc.collect()
-        logger.info('model lg: %s' % i)
-        model = SGDClassifier(loss='log', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model svc: %s' % i)
-        model = SGDClassifier(loss='hinge', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model rf: %s' % i)
-        model = RandomForestClassifier(n_estimators=100,
-                                       min_samples_leaf=5,
-                                       n_jobs=-1,
-                                       random_state=0)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model et: %s' % i)
-        model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model nb: %s' % i)
-        model = GaussianNB()
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-        logger.info('model xg: %s' % i)
-        model = XGBClassifier(seed=0)
-        model.set_params(**params)
-        model.fit(data[cols], target)
-        list_estimator[idx] = model
-        idx += 1
-
-    with open('list_xgb_model.pkl', 'wb') as f:
-        pickle.dump(list_estimator, f, -1)
+            logger.info('all thresh: %s, score: %s' % mcc_optimize(ans, target[test_idx]))
+            score = roc_auc_score(target[test_idx], ans)

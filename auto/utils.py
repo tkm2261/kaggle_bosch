@@ -1,14 +1,6 @@
 import numpy
 import pandas
-from numba.decorators import jit
-import os
-import glob
-
-APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
-DATA_DIR = os.path.join(APP_ROOT, 'data')
-from logging import getLogger
-
-logger = getLogger(__name__)
+#from numba.decorators import jit
 
 
 def mcc(y_true, y_pred):
@@ -36,7 +28,6 @@ def mcc_scoring(estimator, X, y):
     return max_score
 
 
-@jit
 def mcc_scoring2(y_pred_prb, y):
     list_thresh = numpy.arange(1, 100) / 100
     max_score = -1
@@ -50,7 +41,6 @@ def mcc_scoring2(y_pred_prb, y):
     return idx, max_score
 
 
-@jit
 def mcc_optimize(y_prob, y_true):
 
     df = pandas.DataFrame()
@@ -92,45 +82,9 @@ def evalmcc_xgb_min(preds, dtrain):
     return 'MCC', - best_mcc
 
 
-def make_cv():
-
-    test_idx = []
-    for path in [os.path.join(DATA_DIR, 'bosch_cv_split_%s.csv' % i) for i in range(3)]:
-        test_idx.append(list(pandas.read_csv(path)['Id'].values))
-
-    train_idx = [(test_idx[1] + test_idx[2], test_idx[0]),
-                 (test_idx[0] + test_idx[2], test_idx[1]),
-                 (test_idx[0] + test_idx[1], test_idx[2])]
-    return train_idx
-
-
-class CvEstimator:
-
-    def __init__(self, list_estimator):
-        self.list_estimator = list_estimator
-
-    def predict_proba(self, X):
-        ans = []
-
-        for model in self.list_estimator:
-            try:
-                pred = model.predict_proba(X, ntree_limit=model.best_ntree_limit)[:, 1]
-                logger.info('pred xgboost')
-            except AttributeError:
-                pred = model.predict_proba(X)[:, 1]
-
-            ans.append(pred)
-        ans = numpy.array(ans).T
-        return ans.mean(axis=1)
-
-    def __repr__(self):
-        return self.list_estimator[0].__repr__()
-
 if __name__ == '__main__':
-    """
+
     y_prob = numpy.random.random(10000)
     y_true = numpy.where(numpy.random.random(10000) > 0.5, 1, 0)
     print(mcc_optimize(y_prob, y_true))
     print(mcc_scoring2(y_prob, y_true))
-    """
-    cv = make_cv()

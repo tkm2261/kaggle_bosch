@@ -103,14 +103,17 @@ def test():
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    feature_column = LIST_COLUMN_NUM
-
-    df = pandas.read_csv(filename, usecols=['Id', 'Response'] + feature_column, dtype=str)
+    df = pandas.read_csv(filename)
     return df
 
 
 def read_df(df, i):
     df.to_csv(os.path.join(DATA_DIR, 'train_rank/train_rank_%s.csv.gz' % i), index=False, compression='gzip')
+    logger.info('load end %s' % i)
+
+
+def read_df2(df, i):
+    df.to_csv(os.path.join(DATA_DIR, 'test_rank/test_rank_%s.csv.gz' % i), index=False, compression='gzip')
     logger.info('load end %s' % i)
 
 
@@ -120,7 +123,8 @@ if __name__ == '__main__':
     p = Pool()
 
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_simple_part/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*')) +
+                                     glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
                                      )).reset_index(drop=True)
     p.close()
     p.join()
@@ -128,7 +132,6 @@ if __name__ == '__main__':
     def aaa(data_col):
         col = data_col.columns.values[0]
         logger.info(col)
-
         data_col = data_col.rank(method='min').fillna(0).astype(int)
         #cnt = data_col.groupby(col)[col].count()
         #cnt = (cnt < 4).index.values
@@ -165,15 +168,18 @@ if __name__ == '__main__':
             ix = idx[i * num: (i + 1) * num]
 
         df = train_data.ix[ix]
-        res.append(p.apply_async(read_df, (df, i)))
+        res.append(p.apply_async(read_df, (df[df['Response'] == df['Response']], i)))
+        res.append(p.apply_async(read_df2, (df[df['Response'] != df['Response']], i)))
         i += 1
     [r.get() for r in res]
 
     p.close()
     p.join()
-    logger.info('load data 1 %s %s' % train_data.shape)
 
-    id_col = train_data['Id']
+    """
+    logger.info('load data 1 %s %s' % train_data.shape)
+    id_col = train_data['Id'].values
+    id_res = train_data['Response'].values
     pd_data = train_data[[col for col in train_data.columns.values if col != 'Id' and col != 'Response']]
     cols = pd_data.columns.values
 
@@ -184,4 +190,9 @@ if __name__ == '__main__':
     gc.collect()
     pd_ext_data = chi.fit_transform(pd_data, target)
     pd_ext_data['Id'] = id_col
-    pd_ext_data.to_csv('chi_cat_rank.csv', index=False)
+    pd_ext_data['Response'] = id_res
+    pd_ext_data[pd_ext_data['Response'] == pd_ext_data['Response']].to_csv(
+        'chi_num_rank_train.csv.gz', index=False, compression='gzip')
+    pd_ext_data[pd_ext_data['Response'] != pd_ext_data['Response']].to_csv(
+        'chi_num_rank_test.csv.gz', index=False, compression='gzip')
+    """

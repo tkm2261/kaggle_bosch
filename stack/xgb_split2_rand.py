@@ -188,10 +188,9 @@ def read_df(df):
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    #tmp = [col for col in LIST_MCC_UP if 'pred' not in col]
-    #cols = sorted(list(set(LIST_COLUMN_MCC + tmp)))
-    #df = pandas.read_csv(filename, usecols=['Id', TARGET_COLUMN_NAME] + cols)
-    df = pandas.read_csv(filename)
+    tmp = [col for col in LIST_MCC_UP if 'pred' not in col]
+    cols = sorted(list(set(LIST_COLUMN_MCC + tmp)))
+    df = pandas.read_csv(filename, usecols=['Id', TARGET_COLUMN_NAME] + cols)
     return df
 
 
@@ -227,8 +226,9 @@ if __name__ == '__main__':
     logger.info('load start')
 
     p = Pool()
-    train_data = pandas.concat(p.map(read_csv,
-                                     ['../data/train_join/train_join_%s.csv.gz' % i for i in range(119)]
+    train_data = pandas.concat(p.map(read_csv2,
+                                     glob.glob('../data/train_etl/*')
+                                     #['../data/train_join/train_join_%s.csv.gz' % i for i in range(119)]
                                      )).reset_index(drop=True)
 
     p.close()
@@ -268,7 +268,7 @@ if __name__ == '__main__':
    # 'min_child_weight': 0.1, 'scale_pos_weight': 1, 'gamma': 0.4,
    # 'n_estimators': 60, 'learning_rate': 0.1, 'colsample_bytree': 0.6}
     all_params = {'max_depth': [9],
-                  'n_estimators': [200],  # 31
+                  'n_estimators': [20],  # 31
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
                   'min_child_weight': [0.1],
@@ -281,17 +281,44 @@ if __name__ == '__main__':
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
 
     omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
-    with open('train_feature_2.py', 'w') as f:
-        f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
     logger.info('cv_start')
-
     for params in ParameterGrid(all_params):
+        pass
+    import random
+    random.seed(0)
+
+    base_score = -1
+    base_score_mcc = -1
+    map_test = {}
+    while 1:
         all_ans = None
         all_target = None
         all_ids = None
+        data = data[feature_column]
+        logger.info('shape %s %s' % data.shape)
+        with open('train_feature_2_rand.py', 'w') as f:
+            f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
 
-        logger.info('param: %s' % (params))
-        for train_idx, test_idx in list(cv):
+        if base_score > 0:
+            cand = [col for col in feature_column if 'pred' not in col and '-' not in col]
+
+            for _ in range(100):
+                merge_cols = sorted(random.sample(cand, 3))
+                new_col = '-'.join(merge_cols)
+                if new_col in map_test:
+                    continue
+                else:
+                    map_test[new_col] = None
+
+                df_hash = data[merge_cols].astype(str).sum(axis=1)
+                df_hash = pandas.DataFrame(df_hash, columns=['hash'])
+                df_cnt = df_hash.groupby('hash')[['hash']].count()
+
+                df_cnt.columns = [new_col]
+                df_hash = df_hash.merge(df_cnt, how='left', left_on='hash', right_index=True)[new_col].values
+                data[new_col] = df_hash
+
+        for train_idx, test_idx in list(cv)[2:]:
             train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
             logger.info('ommit size: %s %s' % (train_idx.shape[0], len(train_omit_idx)))
 
@@ -299,12 +326,12 @@ if __name__ == '__main__':
             insample_ans = []
             for i in ['']:  #
                 logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
+                cols = [col for col in data.columns.values if 'L%s' % i in col]
                 logger.info('model xg: %s' % i)
                 model = XGBClassifier(seed=0)
                 gc.collect()
                 model.set_params(**params)
-                if 0:
+                if 1:
                     model.fit(data.ix[train_idx, cols], target[train_idx])
                 else:
                     model.fit(data.ix[train_idx, cols], target[train_idx],
@@ -313,11 +340,10 @@ if __name__ == '__main__':
                               early_stopping_rounds=1000,
                               verbose=True)
 
-                insample_ans = model.predict_proba(data.ix[train_idx, cols])[:, 1]
                 ans = model.predict_proba(data.ix[test_idx, cols])[:, 1]
                 score = roc_auc_score(target[test_idx], ans)
-                logger.info('    score: %s' % score)
-                logger.info('    model thresh: %s, score: %s' % mcc_optimize(ans, target[test_idx]))
+                thresh, mcc = mcc_optimize(ans, target[test_idx])
+                logger.info('auc: %s thresh: %s, score: %s' % (score, thresh, mcc))
 
                 """
                 for t in range(1, 101):
@@ -335,6 +361,20 @@ if __name__ == '__main__':
                 all_ans = numpy.r_[all_ans, ans]
                 all_target = numpy.r_[all_target, target[test_idx]]
                 all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
+
+            if base_score == -1:
+                base_score = score
+                base_score_mcc = mcc
+
+            if score > base_score or mcc > base_score_mcc:
+                logger.info('auc improving %s' % (score - base_score))
+                logger.info('mcc improving %s' % (mcc - base_score_mcc))
+                feature_column.append(new_col)
+                base_score = max(base_score, score)
+                base_score_mcc = max(base_score_mcc, mcc)
+
+                imp = pandas.DataFrame(model.feature_importances_, index=cols, columns=['imp'])
+                feature_column = list(imp[imp['imp'] != 0].index.values)
 
         score = roc_auc_score(all_target, all_ans)
         logger.info('score: %s' % score)

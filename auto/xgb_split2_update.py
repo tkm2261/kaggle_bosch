@@ -15,7 +15,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score, log_loss
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.svm import LinearSVC
@@ -53,6 +53,27 @@ logging.basicConfig(format=log_fmt,
                     level='INFO')
 logger = logging.getLogger(__name__)
 
+from autosklearn.classification import AutoSklearnClassifier
+
+import sklearn.cross_validation
+import sklearn.datasets
+import sklearn.metrics
+
+import autosklearn.classification
+from operator import itemgetter
+
+
+def report(grid_scores, n_top=3):
+
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+            score.mean_validation_score,
+            numpy.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
+
 
 def hash_groupby(df, feature_column):
 
@@ -89,8 +110,8 @@ def sigmoid(z):
 
 def make_stack(df, feature_columns):
     logger.info('STACKING!!')
-    ids = pandas.read_csv('stack_1_id_1.csv.gz')['0'].values
-    data = pandas.read_csv('stack_1_data_1.csv.gz')
+    ids = pandas.read_csv('../stack/stack_1_id_1.csv.gz')['0'].values
+    data = pandas.read_csv('../stack/stack_1_data_1.csv.gz')
 
     new_cols = ['L0_L1_L2_L3_pred_%s' % col for col in data.columns.values]
     data.columns = new_cols
@@ -140,18 +161,6 @@ def make_chi3(df, feature_columns):
     return df, feature_columns
 
 
-def make_chi_all(df, feature_columns):
-    for num in [6000, 7000, 8000, 9000]:
-        logger.info('CHI!! %s' % num)
-        data = pandas.read_csv('../protos/test_chi_all_%s_sle.csv.gz' % num)
-        new_cols = ['L_chi_%s_%s' % (num, col) if col != 'Id' else col for col in data.columns.values]
-        data.columns = new_cols
-        feature_columns += [col for col in new_cols if col != 'Id']
-        df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
-
-    return df, feature_columns
-
-
 """
 def make_chi3(df, feature_columns):
     logger.info('CHI!!')
@@ -188,10 +197,9 @@ def read_df(df):
 
 def read_csv(filename):
     'converts a filename to a pandas dataframe'
-    #tmp = [col for col in LIST_MCC_UP if 'pred' not in col]
-    #cols = sorted(list(set(LIST_COLUMN_MCC + tmp)))
-    #df = pandas.read_csv(filename, usecols=['Id', TARGET_COLUMN_NAME] + cols)
-    df = pandas.read_csv(filename)
+    tmp = [col for col in LIST_MCC_UP if 'pred' not in col]
+    cols = sorted(list(set(LIST_COLUMN_MCC + tmp)))
+    df = pandas.read_csv(filename, usecols=['Id', TARGET_COLUMN_NAME] + cols)
     return df
 
 
@@ -240,7 +248,6 @@ if __name__ == '__main__':
     train_data, feature_column = make_chi(train_data, feature_column)
     train_data, feature_column = make_chi2(train_data, feature_column)
     train_data, feature_column = make_chi3(train_data, feature_column)
-    #train_data, feature_column = make_chi_all(train_data, feature_column)
 
     # feature_column += feature_column_cnt
     # feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
@@ -258,121 +265,72 @@ if __name__ == '__main__':
     del train_data
     gc.collect()
 
-    # data_valid, target_valid = get_sample_data(feature_column)
+    model = AutoSklearnClassifier(time_left_for_this_task=20000,
+                                  per_run_time_limit=600,
+                                  initial_configurations_via_metalearning=25,
+                                  ensemble_size=50,
+                                  ensemble_nbest=50,
+                                  seed=1,
+                                  ml_memory_limit=12000,
+                                  include_estimators=None,
+                                  include_preprocessors=None,
+                                  resampling_strategy='holdout',
+                                  tmp_folder='./tmp/',
+                                  output_folder='./out/',
+                                  delete_tmp_folder_after_terminate=False,                                                                                                                     delete_output_folder_after_terminate=False,                                                                                                                  shared_mode=False)
 
-    pos_rate = float(sum(target)) / target.shape[0]
-    logger.info('shape %s %s' % data.shape)
-    logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
+    model.fit(data,
+              target,
+              metric='f1_metric',
+              feat_type=None,
+              dataset_name='numerai_20161021')
 
-   # param: {'max_depth': 9, 'subsample': 1, 'reg_alpha': 0.01,
-   # 'min_child_weight': 0.1, 'scale_pos_weight': 1, 'gamma': 0.4,
-   # 'n_estimators': 60, 'learning_rate': 0.1, 'colsample_bytree': 0.6}
-    all_params = {'max_depth': [9],
-                  'n_estimators': [200],  # 31
-                  'learning_rate': [0.1],
-                  'scale_pos_weight': [1],
-                  'min_child_weight': [0.1],
-                  'subsample': [1],
-                  'colsample_bytree': [0.6],
-                  'reg_alpha': [0.1],
-                  'gamma': [0.4]
-                  }
+    try:
+        report(model.grid_scores_)
+    except:
+        pass
+
+    with open('result.txt', 'w') as f:
+        f.write(model.show_models())
 
     cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
+    for train_idx, test_idx in list(cv)[:1]:
+        model.refit(data.ix[train_idx, :], target[train_idx])
+        ans = model.predict_proba(data.ix[test_idx, :])[:, 1]
+        score = roc_auc_score(target[test_idx], ans)
+        print('    score: %s' % score)
+        print('    model thresh: %s, score: %s' % mcc_optimize(ans, target[test_idx]))
 
-    omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
-    with open('train_feature_2.py', 'w') as f:
-        f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
-    logger.info('cv_start')
+    model.refit(data.ix, target)
+    del data
+    gc.collect()
 
-    for params in ParameterGrid(all_params):
-        all_ans = None
-        all_target = None
-        all_ids = None
+    try:
+        with open('tmp_model.pkl', 'wb') as f:
+            pickle.dump(model, f, -1)
+    except:
+        pass
+    p = Pool()
 
-        logger.info('param: %s' % (params))
-        for train_idx, test_idx in list(cv):
-            train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
-            logger.info('ommit size: %s %s' % (train_idx.shape[0], len(train_omit_idx)))
+    df = pandas.concat(p.map(read_csv,
+                             glob.glob(os.path.join(DATA_DIR, 'test_join/*'))
+                             )).reset_index(drop=True)
 
-            ans = []
-            insample_ans = []
-            for i in ['']:  #
-                logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
-                logger.info('model xg: %s' % i)
-                model = XGBClassifier(seed=0)
-                gc.collect()
-                model.set_params(**params)
-                if 0:
-                    model.fit(data.ix[train_idx, cols], target[train_idx])
-                else:
-                    model.fit(data.ix[train_idx, cols], target[train_idx],
-                              eval_set=[(data.ix[test_idx, cols], target[test_idx])],
-                              eval_metric=evalmcc_xgb_min,
-                              early_stopping_rounds=1000,
-                              verbose=True)
+    p.close()
+    p.join()
 
-                insample_ans = model.predict_proba(data.ix[train_idx, cols])[:, 1]
-                ans = model.predict_proba(data.ix[test_idx, cols])[:, 1]
-                score = roc_auc_score(target[test_idx], ans)
-                logger.info('    score: %s' % score)
-                logger.info('    model thresh: %s, score: %s' % mcc_optimize(ans, target[test_idx]))
+    pred = pandas.read_csv('../stack/ans_stack_1.csv.gz', index_col='Id')
+    df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
+    df, _ = make_chi(df, list(feature_column))
+    df, _ = make_chi2(df, list(feature_column))
+    df, _ = make_chi3(df, list(feature_column))
 
-                """
-                for t in range(1, 101):
-                    ans = model.predict_proba(data.ix[test_idx, cols], ntree_limit=t)[:, 1]
-                    score = roc_auc_score(target[test_idx], ans)
-                    logger.info('    score: %s' % score)
-                    logger.info('    model thresh: %s, score: %s' % mcc_optimize(ans, target[test_idx]))
-                """
-            logger.info('train_end')
-            if all_ans is None:
-                all_ans = ans
-                all_target = target[test_idx]
-                all_ids = ids.ix[test_idx].values
-            else:
-                all_ans = numpy.r_[all_ans, ans]
-                all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
+    data = df[feature_column].fillna(-10)
+    ids = df['Id']
 
-        score = roc_auc_score(all_target, all_ans)
-        logger.info('score: %s' % score)
-        score = log_loss(all_target, all_ans)
-        logger.info('logloss score: %s' % score)
+    predict_proba = model.predict_proba(data)[:, 1]
+    ans = pandas.DataFrame(ids)
+    ans['Response'] = predict_proba
+    ans['proba'] = predict_proba
 
-        logger.info('cv model thresh: %s, score: %s' % mcc_optimize(all_ans, all_target))
-
-    for i in ['']:
-        logger.info('model: %s' % i)
-        cols = [col for col in feature_column if 'L%s' % i in col]
-        logger.info('model xg: %s' % i)
-        model = XGBClassifier(seed=0)
-        model.set_params(**params)
-        model.fit(data[cols], target)
-        """
-        model.fit(data[cols], target,
-                  # eval_set=[(data_valid, target_valid)],
-                  eval_metric=evalmcc_xgb_min,
-                  early_stopping_rounds=50,
-                  verbose=True)
-        """
-
-    with open('tmp_model.pkl', 'wb') as f:
-        pickle.dump(model, f, -1)
-
-    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
-    _data = pandas.read_csv('stack_1_data_2.csv')
-    logger.info('old data %s %s' % _data.shape)
-    df = pandas.Series(all_ans, index=all_ids)
-    logger.info('df data %s' % df.shape[0])
-
-    _data[data.columns.values[-1]] = df[ids].values
-    _data.to_csv('stack_1_data_2_2.csv', index=False)
-
-    with open('list_xgb_model_2.pkl', 'rb') as f:
-        list_model = pickle.load(f)
-
-    list_model[-2] = model
-    with open('list_xgb_model_2_1.pkl', 'wb') as f:
-        pickle.dump(list_model, f, -1)
+    ans.to_csv('submit.csv', index=False)
