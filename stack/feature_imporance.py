@@ -35,15 +35,14 @@ def main():
     logger.info('feature_num: %s %s' % (len(LIST_FEATURE_COLUMN_NAME), len(feature_column)))
     df_fi = pandas.DataFrame()
     df_fi['name'] = feature_column
-    for j, jj in enumerate(['']):
+    for j, jj in enumerate([0, '']):
         cols = [col for col in feature_column if 'L%s' % jj in col]
         df_fi2 = pandas.DataFrame()
         df_fi2['name'] = cols
-        df_fi2['model%s' % j] = list_model[-1].feature_importances_
-
+        df_fi2['model%s' % j] = list_model[j].feature_importances_
         df_fi = pandas.merge(df_fi, df_fi2, how='left', left_on='name', right_on='name')
 
-    df_fi.sort_values('model0', ascending=False).to_csv('feature_importances.csv', index=False)
+    df_fi.sort_values('model1', ascending=False).to_csv('feature_importances.csv', index=False)
     return df_fi
 if __name__ == '__main__':
     df = main()

@@ -48,6 +48,13 @@ def etl(train_data, num, feature_column, date_cols):
         train_data[col_names[3]] = train_data[col_names[2]] - train_data[col_names[0]]
         for col in cols:
             train_data[col + '_%s_D' % i] = train_data[col] - train_data[col_names[0]]
+
+        if i == '':
+            cols = sorted(cols)
+            for j in range(len(cols) - 1):
+                new_col = cols[j + 1] + '-' + cols[j]
+                train_data[new_col] = train_data[cols[j + 1]] - train_data[cols[j]]
+
         logger.info('line date %s end' % i)
 
     logger.info('size %s %s' % train_data.shape)

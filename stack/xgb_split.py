@@ -29,7 +29,7 @@ TRAIN_DATA = os.path.join(DATA_DIR, 'train_etl_sampling.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
 
-from utils import mcc_optimize, evalmcc_xgb_min, CvEstimator, make_cv
+from utils import mcc_optimize, evalmcc_xgb_min, make_cv
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
 from feature_orig import LIST_COLUMN_NUM
 from feature_0928 import LIST_COLUMN_ZERO
@@ -51,8 +51,8 @@ def hash_groupby(df, feature_column):
             continue
         logger.info('hash col%s' % col)
         tmp = df.groupby(col)[[TARGET_COLUMN_NAME]].count()
-        # tmp_mean = tmp[TARGET_COLUMN_NAME].mean()
-        # tmp[TARGET_COLUMN_NAME][tmp[TARGET_COLUMN_NAME] < 2] = 2
+        #tmp_mean = tmp[TARGET_COLUMN_NAME].mean()
+        #tmp[TARGET_COLUMN_NAME][tmp[TARGET_COLUMN_NAME] < 2] = 2
         tmp.columns = [col + '_prob']
         new_feature_column.append(col + '_prob')
         df = pandas.merge(df, tmp, how='left', left_on=col, right_index=True)
@@ -98,7 +98,7 @@ def make_stack(df, feature_columns):
 
 def make_magic(df, feature_columns):
     logger.info('make magic')
-    # df['L_Id'] = df['Id'].values
+    #df['L_Id'] = df['Id'].values
     # feature_column.append('L_Id')
 
     idx = df.index.values
@@ -115,20 +115,24 @@ def make_magic(df, feature_columns):
 def read_df(df):
     return df
 
-
 if __name__ == '__main__':
     logger.info('load start')
     p = Pool()
-
     train_data = pandas.concat(p.map(read_csv,
-                                     ['../data/train_join/train_join_%s.csv.gz' % i for i in range(119)]
+                                     glob.glob(os.path.join(DATA_DIR, 'train_join/*'))
                                      )).reset_index(drop=True)
 
     p.close()
     p.join()
-    feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
 
     logger.info('shape %s %s' % train_data.shape)
+
+    feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
+    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
+    gc.collect()
+    # with open('train_data.pkl.gz', 'wb') as f:
+    #    pickle.dump(train_data, f, -1)
+
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
     feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
 
@@ -143,7 +147,7 @@ if __name__ == '__main__':
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
     all_params = {'max_depth': [9],
-                  'n_estimators': [1000],
+                  'n_estimators': [150],
                   'learning_rate': [0.1],
                   'scale_pos_weight': [1],
                   'min_child_weight': [0.01],
@@ -152,104 +156,192 @@ if __name__ == '__main__':
                   'reg_alpha': [0.01],
                   }
 
-    cv = make_cv()  # StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
+    cv = make_cv()  # cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
     all_ans = None
     all_target = None
     all_ids = None
+
     with open('train_feature_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
 
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
-        list_estimator = [CvEstimator([]) for i in range(25)]
+
         for train_idx, test_idx in list(cv):
+            list_estimator = []
             ans = []
             insample_ans = []
-            idx = 0
             for i in [0, 1, 2, 3, '']:  #
                 logger.info('model: %s' % i)
                 cols = [col for col in feature_column if 'L%s' % i in col]
 
-                logger.info('model rf: %s' % idx)
-                model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
-                gc.collect()
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator[idx].list_estimator.append(model)
-                idx += 1
+                logger.info('model lg: %s' % i)
+                model = SGDClassifier(loss='log', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
-                logger.info('model rf2: %s' % idx)
+                logger.info('model svc: %s' % i)
+                model = SGDClassifier(loss='hinge', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
+                ans.append(sigmoid(model.decision_function(data.ix[test_idx, cols])))
+                insample_ans.append(model.decision_function(data.ix[train_idx, cols]))
+
+                logger.info('model rf: %s' % i)
+                model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
+                gc.collect()
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model rf2: %s' % i)
                 model = RandomForestClassifier(n_estimators=100,
                                                min_samples_leaf=10,
                                                n_jobs=-1,
                                                random_state=0)
                 gc.collect()
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator[idx].list_estimator.append(model)
-                idx += 1
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
-                logger.info('model et: %s' % idx)
+                logger.info('model et: %s' % i)
                 model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator[idx].list_estimator.append(model)
-                idx += 1
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
-                logger.info('model et2: %s' % idx)
+                logger.info('model et2: %s' % i)
                 model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
-                model.fit(data.ix[train_idx, cols], target[train_idx])
-                list_estimator[idx].list_estimator.append(model)
-                idx += 1
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
                 ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
                 insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
 
-                logger.info('model xg: %s' % idx)
+                logger.info('model nb: %s' % i)
+                model = GaussianNB()
+                gc.collect()
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx])
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+                logger.info('model xg: %s' % i)
                 model = XGBClassifier(seed=0)
                 gc.collect()
                 model.set_params(**params)
-                model.fit(data.ix[train_idx, cols], target[train_idx].values,
-                          eval_set=[(data.ix[test_idx, cols], target[test_idx].values)],
-                          early_stopping_rounds=500,
+                model.fit(data.ix[train_idx, cols], target.ix[train_idx],
                           eval_metric=evalmcc_xgb_min,
-                          verbose=True)
-                list_estimator[idx].list_estimator.append(model)
-                idx += 1
-                ans.append(model.predict_proba(data.ix[test_idx, cols],
-                                               ntree_limit=model.best_ntree_limit)[:, 1])
-                insample_ans.append(model.predict_proba(data.ix[train_idx, cols],
-                                                        ntree_limit=model.best_ntree_limit)[:, 1])
+                          verbose=False)
+                list_estimator.append(model)
+                ans.append(model.predict_proba(data.ix[test_idx, cols])[:, 1])
+                insample_ans.append(model.predict_proba(data.ix[train_idx, cols])[:, 1])
+
+            with open('list_xgb_model.pkl', 'wb') as f:
+                pickle.dump(list_estimator, f, -1)
 
             logger.info('train_end')
             ans = numpy.array(ans).T
             insample_ans = numpy.array(insample_ans).T
             if all_ans is None:
                 all_ans = ans
-                all_target = target[test_idx]
+                all_target = target.ix[test_idx].values
                 all_ids = data.ix[test_idx].index.values.astype(int)
             else:
                 all_ans = numpy.r_[all_ans, ans]
-                all_target = numpy.r_[all_target, target[test_idx]]
+                all_target = numpy.r_[all_target, target.ix[test_idx].values]
                 all_ids = numpy.r_[all_ids, data.ix[test_idx].index.values.astype(int)]
 
+            model = XGBClassifier(seed=0)
+            model.fit(ans, target.ix[test_idx])
+            pred = model.predict_proba(ans)[:, 1]
+            logger.info('model thresh: %s, score: %s' % mcc_optimize(pred, target.ix[test_idx].values))
             pred = ans.max(axis=1)
-            logger.info('max thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx].values))
+            logger.info('max thresh: %s, score: %s' % mcc_optimize(pred, target.ix[test_idx].values))
             pred = ans.min(axis=1)
-            logger.info('min thresh: %s, score: %s' % mcc_optimize(pred, target[test_idx].values))
+            logger.info('min thresh: %s, score: %s' % mcc_optimize(pred, target.ix[test_idx].values))
 
-            logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target[test_idx].values))
+            logger.info('mean thresh: %s, score: %s' % mcc_optimize(ans.mean(axis=1), target.ix[test_idx].values))
 
             for j in range(ans.shape[1]):
-                score = roc_auc_score(target[test_idx], ans[:, j])
+                score = roc_auc_score(target.ix[test_idx].values, ans[:, j])
                 logger.info('score: %s' % score)
-                logger.info('model thresh: %s, score: %s' % mcc_optimize(ans[:, j], target[test_idx].values))
+                logger.info('model thresh: %s, score: %s' % mcc_optimize(ans[:, j], target.ix[test_idx].values))
 
-    pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv.gz', index=False, compression='gzip')
-    pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv.gz', index=False, compression='gzip')
-    pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv.gz', index=False, compression='gzip')
+            score = roc_auc_score(target.ix[test_idx].values, pred)
+            logger.info('INSAMPLE score: %s' % score)
+            pred = model.predict_proba(insample_ans)[:, 1]  # ans.max(axis=1)
+            score = roc_auc_score(target.ix[train_idx].values, pred)
+            logger.info('INSAMPLE train score: %s' % score)
+
+            list_estimator.append(model)
+
+    pandas.DataFrame(all_ans).to_csv('stack_1_data_1.csv', index=False)
+    pandas.DataFrame(all_target).to_csv('stack_1_target_1.csv', index=False)
+    pandas.DataFrame(all_ids).to_csv('stack_1_id_1.csv', index=False)
+
+    for params in ParameterGrid(all_params):
+        pass
+    list_estimator = [None] * 46
+    idx = 0
+    for i in [0, 1, 2, 3, '']:
+        logger.info('model: %s' % i)
+        cols = [col for col in feature_column if 'L%s' % i in col]
+
+        gc.collect()
+        logger.info('model lg: %s' % i)
+        model = SGDClassifier(loss='log', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model svc: %s' % i)
+        model = SGDClassifier(loss='hinge', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model rf: %s' % i)
+        model = RandomForestClassifier(n_estimators=100, min_samples_leaf=5, n_jobs=-1, random_state=0)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model rf2: %s' % i)
+        model = RandomForestClassifier(n_estimators=100, min_samples_leaf=10, n_jobs=-1, random_state=0)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model et: %s' % i)
+        model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=5, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model et2: %s' % i)
+        model = ExtraTreesClassifier(n_estimators=100, min_samples_leaf=10, random_state=0, n_jobs=-1)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model nb: %s' % i)
+        model = GaussianNB()
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
+        logger.info('model xg: %s' % i)
+        model = XGBClassifier(seed=0)
+        model.set_params(**params)
+        model.fit(data[cols], target)
+        list_estimator[idx] = model
+        idx += 1
+
     with open('list_xgb_model.pkl', 'wb') as f:
         pickle.dump(list_estimator, f, -1)
