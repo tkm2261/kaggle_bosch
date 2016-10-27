@@ -124,7 +124,7 @@ if __name__ == '__main__':
     logger.info('load start')
     p = Pool()
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_join/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_hosaka/*'))
                                      )).reset_index(drop=True)
 
     p.close()
@@ -135,17 +135,6 @@ if __name__ == '__main__':
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
     gc.collect()
-    # with open('train_data.pkl.gz', 'wb') as f:
-    #    pickle.dump(train_data, f, -1)
-
-    #feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
-
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX +
-                      LIST_ZERO_COL + LIST_ZERO_COL2 + LIST_ZERO_COL3 +
-                      LIST_ZERO_COL_CNT + LIST_ZERO_COL_CNT2 +
-                      LIST_ZERO_COL_ALL]
-
-    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
 
     target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_), index=train_data['Id'].values)
     data = train_data[feature_column + ['Id']].fillna(-10).set_index('Id')
@@ -185,8 +174,10 @@ if __name__ == '__main__':
             insample_ans = []
             for i in [0, 1, 2, 3, '']:  #
                 logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
-
+                if i != '':
+                    cols = [col for col in feature_column if 'L%s' % i in col]
+                else:
+                    cols = feature_column
                 logger.info('model lg: %s' % i)
                 model = SGDClassifier(loss='log', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
                 model.fit(data.ix[train_idx, cols], target.ix[train_idx])
@@ -302,7 +293,10 @@ if __name__ == '__main__':
     idx = 0
     for i in [0, 1, 2, 3, '']:
         logger.info('model: %s' % i)
-        cols = [col for col in feature_column if 'L%s' % i in col]
+        if i != '':
+            cols = [col for col in feature_column if 'L%s' % i in col]
+        else:
+            cols = feature_column
 
         gc.collect()
         logger.info('model lg: %s' % i)

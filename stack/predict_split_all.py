@@ -56,7 +56,6 @@ def sigmoid(z):
 
 
 def main():
-    feature_column = LIST_TRAIN_COL
     with open('list_xgb_model.pkl', 'rb') as f:
         list_model = pickle.load(f)
     with open('list_xgb_model_2.pkl', 'rb') as f:
@@ -68,29 +67,26 @@ def main():
     p = Pool()
 
     test_data = pandas.concat(p.map(read_csv,
-                                    glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
+                                    glob.glob(os.path.join(DATA_DIR, 'test_hosaka/*'))
                                     )).reset_index(drop=True)
-
-    test_data_cnt = pandas.concat(p.map(read_df,
-                                        pandas.read_csv(os.path.join(
-                                            DATA_DIR, 'test_etl2/test.csv.gz'), chunksize=10000),
-                                        )).reset_index(drop=True)
     p.close()
     p.join()
     logger.info('end load')
-    df = test_data.merge(test_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
-    del test_data
-    del test_data_cnt
+
     gc.collect()
     logger.info('end merge')
 
-    feature_column_1 = [col for col in feature_column if 'L_pred' not in col]
-    data = df[feature_column_1].fillna(-10)
+    feature_column = LIST_TRAIN_COL
+    data = test_data[feature_column].fillna(-10)
     pred = []
 
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
-        cols = [col for col in feature_column_1 if 'L%s' % jj in col]
+        if jj != '':
+            cols = [col for col in feature_column if 'L%s' % jj in col]
+        else:
+            cols = feature_column
+
         for s in range(8):
             model = list_model[cnt]
             logger.info('(%s, %s)' % (j, s))
@@ -103,21 +99,28 @@ def main():
 
     pred = pandas.DataFrame(numpy.array(pred).T,
                             columns=['L_pred_%s' % col for col in range(cnt)],
-                            index=df['Id'].values)
+                            index=test_data['Id'].values)
 
     logger.info('end pred1')
-    df = df.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
+
+    test_data = test_data.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
     del data
     gc.collect()
-    data = df[LIST_TRAIN_COL2].fillna(-10)
+    data = test_data[LIST_TRAIN_COL2].fillna(-10)
     logger.info('end 1')
     pred = []
 
     cnt = 0
     for j, jj in enumerate([0, 1, 2, 3, '']):
-        cols = [col for col in LIST_TRAIN_COL2 if 'L%s' % jj in col]
+        if jj != '':
+            cols = [col for col in feature_column if 'L%s' % jj in col]
+        else:
+            cols = feature_column
+
         for s in range(8):
             model = list_model2[cnt]
+            logger.info('(2, %s, %s)' % (j, s))
+            logger.info('%s' % (model.__repr__()))
             try:
                 pred.append(model.predict_proba(data[cols])[:, 1])
             except Exception:
@@ -133,7 +136,7 @@ def main():
 
     predict = numpy.where(predict_proba >= 0.224, 1, 0)
     logger.info('end predict')
-    ans = pandas.DataFrame(df['Id'])
+    ans = pandas.DataFrame(test_data['Id'])
     ans['Response'] = predict
     ans['proba'] = predict_proba
     ans['proba2'] = predict_proba2

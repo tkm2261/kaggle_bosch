@@ -94,13 +94,13 @@ if __name__ == '__main__':
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
 
-    all_params = {'max_depth': [3],
-                  'n_estimators': [200],
+    all_params = {'max_depth': [3, 5, 7],
+                  'n_estimators': [200, 100],
                   'learning_rate': [0.1],
-                  'min_child_weight': [1],
-                  'subsample': [1],
+                  'min_child_weight': [1, 0.5],
+                  'subsample': [1, 0.7],
                   'reg_alpha': [0.1],
-                  'colsample_bytree': [1],
+                  'colsample_bytree': [1, 0.8],
                   'scale_pos_weight': [1]}
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}

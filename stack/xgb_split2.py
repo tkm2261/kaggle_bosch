@@ -118,54 +118,24 @@ def read_df(df):
 
 if __name__ == '__main__':
     logger.info('load start')
-    """
+    logger.info('load start')
     p = Pool()
-
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_hosaka/*'))
                                      )).reset_index(drop=True)
-    train_data_cnt = pandas.concat(p.map(read_df,
-                                         pandas.read_csv(os.path.join(
-                                             DATA_DIR, 'train_etl2/train.csv.gz'), chunksize=10000),
-                                         )).reset_index(drop=True)
+
     p.close()
     p.join()
+
     logger.info('shape %s %s' % train_data.shape)
 
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    feature_column_cnt = [col for col in train_data_cnt.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-
-    train_data_cnt = train_data_cnt[[col for col in train_data_cnt.columns.values if col != TARGET_COLUMN_NAME]]
-    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
-    train_data = train_data.merge(train_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
-
-    if 1:
-        train_data.to_csv(os.path.join(DATA_DIR, 'train_join.csv.gz'), compression='gzip', index=False)
- 
-    del train_data_cnt
-    gc.collect()
-    """
-    p = Pool()
-    train_data = pandas.concat(p.map(read_df,
-                                     pandas.read_csv(os.path.join(
-                                         DATA_DIR, 'train_join.csv.gz'), chunksize=10000)
-                                     ), ignore_index=False).reset_index(drop=True)
-    p.close()
-    p.join()
-    feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
-    logger.info('load end')
-
     train_data, feature_column = make_stack(train_data, feature_column)
-    #feature_column += feature_column_cnt
-    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
-    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
 
-    target = train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_)
-    data = train_data[feature_column].fillna(-10)
-    ids = train_data['Id']
-
-    del train_data
     gc.collect()
+
+    target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_), index=train_data['Id'].values)
+    data = train_data[feature_column + ['Id']].fillna(-10).set_index('Id')
 
     pos_rate = float(sum(target)) / target.shape[0]
     logger.info('shape %s %s' % data.shape)
@@ -186,21 +156,21 @@ if __name__ == '__main__':
     all_target = None
     all_ids = None
 
-    omit_idx = ids[~ids.isin(LIST_OMIT_POS_ID)].index.values
     with open('train_feature_2.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
     logger.info('cv_start')
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
         for train_idx, test_idx in list(cv):
-            train_omit_idx = numpy.intersect1d(train_idx, omit_idx)
-            logger.info('ommit size: %s %s' % (train_idx.shape[0], len(train_omit_idx)))
             list_estimator = []
             ans = []
             insample_ans = []
             for i in [0, 1, 2, 3, '']:  #
                 logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
+                if i != '':
+                    cols = [col for col in feature_column if 'L%s' % i in col]
+                else:
+                    cols = feature_column
 
                 logger.info('model lg: %s' % i)
                 model = SGDClassifier(loss='log', penalty='l1', n_iter=20, random_state=0, n_jobs=-1)
@@ -276,12 +246,12 @@ if __name__ == '__main__':
             insample_ans = numpy.array(insample_ans).T
             if all_ans is None:
                 all_ans = ans
-                all_target = target[test_idx]
-                all_ids = ids.ix[test_idx].values
+                all_target = target.ix[test_idx].values
+                all_ids = data.ix[test_idx].index.values.astype(int)
             else:
                 all_ans = numpy.r_[all_ans, ans]
-                all_target = numpy.r_[all_target, target[test_idx]]
-                all_ids = numpy.r_[all_ids, ids.ix[test_idx]]
+                all_target = numpy.r_[all_target, target.ix[test_idx].values]
+                all_ids = numpy.r_[all_ids, data.ix[test_idx].index.values.astype(int)]
 
             model = XGBClassifier(seed=0)
             model.fit(ans, target[test_idx])
@@ -314,7 +284,10 @@ if __name__ == '__main__':
     idx = 0
     for i in [0, 1, 2, 3, '']:
         logger.info('model: %s' % i)
-        cols = [col for col in feature_column if 'L%s' % i in col]
+        if i != '':
+            cols = [col for col in feature_column if 'L%s' % i in col]
+        else:
+            cols = feature_column
 
         gc.collect()
         logger.info('model lg: %s' % i)
