@@ -10,7 +10,6 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, accura
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.metrics import matthews_corrcoef
 from sklearn.cross_validation import StratifiedKFold
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier, IsolationForest
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 DATA_DIR = os.path.join(APP_ROOT, 'data')
@@ -79,25 +78,19 @@ def mcc_scoring2(y_pred_prb, y):
 
 
 def make_data():
-    ids = pandas.read_csv('stack_1_id_2.csv.gz')['0'].values
-    target = pandas.read_csv('stack_1_target_2.csv.gz')['0'].values
-    data = pandas.read_csv('stack_1_data_2.csv.gz')
+    ids = pandas.read_csv('stack_1_id_2.csv')['0'].values
+    target = pandas.read_csv('stack_1_target_2.csv')['0'].values
+    data = pandas.read_csv('stack_1_data_2.csv')
     data['Id'] = ids
+
     data[TARGET_COLUMN_NAME] = target
     logger.info('shape %s %s' % data.shape)
+    ids1 = pandas.read_csv('stack_1_id_1.csv')['0'].values
+    data1 = pandas.read_csv('stack_1_data_1.csv')
+    data1['Id'] = ids1
+    logger.info('shape %s %s' % data1.shape)
 
-    ids1 = pandas.read_csv('stack_1_id_1.csv.gz')['0'].values
-    data1 = pandas.read_csv('stack_1_data_1.csv.gz')
-    data1['Id'] = ids1
-    logger.info('shape %s %s' % data1.shape)
     data = data.merge(data1, left_on='Id', right_on='Id', copy=False)
-    """
-    ids1 = pandas.read_csv('stack_1_id_3.csv.gz')['0'].values
-    data1 = pandas.read_csv('stack_1_data_3.csv.gz')
-    data1['Id'] = ids1
-    logger.info('shape %s %s' % data1.shape)
-    data = data.merge(data1, left_on='Id', right_on='Id', copy=False)
-    """
     return data
 
 if __name__ == '__main__':
@@ -117,21 +110,15 @@ if __name__ == '__main__':
     # 4/8 param: {'learning_rate': 0.1, 'colsample_bytree': 1, 'scale_pos_weight': 1, 'n_estimators': 100, 'subsample': 1, 'min_child_weight': 1, 'max_depth': 4}
     # 2016-09-27/15:59:07 __main__ 132 [INFO][<module>] thresh:
     # 0.225158065557, total score: 0.264650750521, max_score: 0.264650750521
-    all_params = {'max_depth': [5],
-                  'n_estimators': [42, 108],
+
+    all_params = {'max_depth': [3, 5, 7],
+                  'n_estimators': [50, 100, 200],
                   'learning_rate': [0.1],
                   'min_child_weight': [1],
-                  'subsample': [0.6],
-                  'reg_alpha': [0.1],
-                  'gamma': [0.8],
-                  'colsample_bytree': [0.9],
+                  'subsample': [1],
+                  'reg_alpha': [0, 0.1, 0.01],
+                  'colsample_bytree': [1],
                   'scale_pos_weight': [1]}
-
-    _all_params = {'max_depth': [10],
-                   'max_features': [12],
-                   'n_estimators': [200],
-                   'min_samples_leaf': [5]}
-
     _all_params = {'C': [10**i for i in range(-3, 2)],
                    'penalty': ['l2']}
     cv = StratifiedKFold(target, n_folds=5, shuffle=True, random_state=0)
@@ -150,10 +137,11 @@ if __name__ == '__main__':
         for train_idx, test_idx in cv:
             model = XGBClassifier(seed=0)
             #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-            #model = RandomForestClassifier(n_jobs=-1, random_state=0)
             model.set_params(**params)
 
-            model.fit(data[train_idx], target[train_idx])
+            model.fit(data[train_idx], target[train_idx],
+                      eval_metric=evalmcc_xgb_min,
+                      verbose=False)
 
             #pred_proba = data[test_idx, -1]
             pred_proba = model.predict_proba(data[test_idx])[:, 1]
@@ -172,12 +160,12 @@ if __name__ == '__main__':
             best_param = params
             best_thresh = thresh
     logger.info('best_thresh: %s, total max score: %s' % (best_thresh, max_score))
-    #model = XGBClassifier(seed=0)
+    model = XGBClassifier(seed=0)
     #model = LogisticRegression(n_jobs=-1, class_weight='balanced')
-    model = RandomForestClassifier(n_jobs=-1, random_state=0)
     model.set_params(**best_param)
+    model.fit(data[train_idx], target[train_idx],
+              eval_metric=evalmcc_xgb_min,
+              verbose=False)
 
-    model.fit(data[train_idx], target[train_idx])
-
-    with open('stack_model_2_st.pkl', 'wb') as f:
+    with open('stack_model_2.pkl', 'wb') as f:
         pickle.dump(model, f, -1)

@@ -48,6 +48,13 @@ def etl(train_data, num, feature_column, date_cols):
         train_data[col_names[3]] = train_data[col_names[2]] - train_data[col_names[0]]
         for col in cols:
             train_data[col + '_%s_D' % i] = train_data[col] - train_data[col_names[0]]
+
+        if i == '':
+            cols = sorted(cols)
+            for j in range(len(cols) - 1):
+                new_col = cols[j + 1] + '-' + cols[j]
+                train_data[new_col] = train_data[cols[j + 1]] - train_data[cols[j]]
+
         logger.info('line date %s end' % i)
 
     logger.info('size %s %s' % train_data.shape)
@@ -59,6 +66,13 @@ def etl(train_data, num, feature_column, date_cols):
         train_data['L%s_NUM_MIN' % i] = tmp.min(axis=1)
         train_data['L%s_NUM_AVG' % i] = tmp.mean(axis=1)
         train_data['L%s_NUM_DIFF' % i] = train_data['L%s_NUM_MAX' % i] - train_data['L%s_NUM_MIN' % i]
+
+        if i == '':
+            cols = sorted(cols)
+            for j in range(len(cols) - 1):
+                new_col = cols[j + 1] + '-' + cols[j]
+                train_data[new_col] = train_data[cols[j + 1]] - train_data[cols[j]]
+
         logger.info('line num %s end' % i)
 
     logger.info('size %s %s' % train_data.shape)
@@ -123,9 +137,21 @@ if __name__ == '__main__':
         feature_column += [col + '_%s_D' % i for col in cols]
         feature_column += col_names
         logger.info('line date %s end' % i)
+        if i == '':
+            cols = sorted(cols)
+            for j in range(len(cols) - 1):
+                new_col = cols[j + 1] + '-' + cols[j]
+                feature_column.append(new_col)
 
+    num_column = [col for col in LIST_FEATURE_COLUMN_NAME if col in LIST_COLUMN_NUM]
     for i in list(range(4)) + ['']:
         feature_column += ['L%s_NUM_MAX' % i, 'L%s_NUM_MIN' % i, 'L%s_NUM_AVG' % i, 'L%s_NUM_DIFF' % i]
+        if i == '':
+            cols = [col for col in num_column if 'L%s' % i in col]
+            cols = sorted(cols)
+            for j in range(len(cols) - 1):
+                new_col = cols[j + 1] + '-' + cols[j]
+                feature_column.append(new_col)
 
     num_column = [col for col in LIST_FEATURE_COLUMN_NAME if col in LIST_COLUMN_NUM]
     for i in range(52):
@@ -150,16 +176,16 @@ if __name__ == '__main__':
         feature_column.append('L%s_hash' % i)
 
     feature_column += ['L_hash_cnt', 'L_hash_cnt_cat', 'L_hash_cnt_num', 'L_hash_cnt_date']
-    mst = pandas.read_csv('../data/hash_table.csv', header=None, names=['L_hash_cnt'], index_col=0)
-    mst_cat = pandas.read_csv('../data/hash_table_cat.csv', header=None, names=['L_hash_cnt_cat'], index_col=0)
-    mst_num = pandas.read_csv('../data/hash_table_num.csv', header=None, names=['L_hash_cnt_num'], index_col=0)
-    mst_date = pandas.read_csv('../data/hash_table_date.csv', header=None, names=['L_hash_cnt_date'], index_col=0)
+    mst = pandas.read_csv('../data/hash_table.csv.gz', header=None, names=['L_hash_cnt'], index_col=0)
+    mst_cat = pandas.read_csv('../data/hash_table_cat.csv.gz', header=None, names=['L_hash_cnt_cat'], index_col=0)
+    mst_num = pandas.read_csv('../data/hash_table_num.csv.gz', header=None, names=['L_hash_cnt_num'], index_col=0)
+    mst_date = pandas.read_csv('../data/hash_table_date.csv.gz', header=None, names=['L_hash_cnt_date'], index_col=0)
 
     feature_column += ['L%s_hash_cnt' % i for i in range(4)]
-    list_mst = [{'mst': pandas.read_csv('../data/hash_table_L%s.csv' % i, header=None, names=['L%s_hash_cnt' % i], index_col=0),
-                 'cat': pandas.read_csv('../data/hash_table_cat_L%s.csv' % i, header=None, names=['L%s_hash_cnt_cat' % i], index_col=0),
-                 'num': pandas.read_csv('../data/hash_table_num_L%s.csv' % i, header=None, names=['L%s_hash_cnt_num' % i], index_col=0),
-                 'date': pandas.read_csv('../data/hash_table_date_L%s.csv' % i, header=None, names=['L%s_hash_cnt_date' % i], index_col=0),
+    list_mst = [{'mst': pandas.read_csv('../data/hash_table_L%s.csv.gz' % i, header=None, names=['L%s_hash_cnt' % i], index_col=0),
+                 'cat': pandas.read_csv('../data/hash_table_cat_L%s.csv.gz' % i, header=None, names=['L%s_hash_cnt_cat' % i], index_col=0),
+                 'num': pandas.read_csv('../data/hash_table_num_L%s.csv.gz' % i, header=None, names=['L%s_hash_cnt_num' % i], index_col=0),
+                 'date': pandas.read_csv('../data/hash_table_date_L%s.csv.gz' % i, header=None, names=['L%s_hash_cnt_date' % i], index_col=0),
                  }
                 for i in range(4)]
 
@@ -171,7 +197,7 @@ if __name__ == '__main__':
         line = cols[0][1]
         col_name = 'L%s_S%s_hash_cnt' % (line, i)
         feature_column.append(col_name)
-        map_sec_mst[line, i] = pandas.read_csv('../data/hash_table_date_L%s_S%s.csv' %
+        map_sec_mst[line, i] = pandas.read_csv('../data/hash_table_date_L%s_S%s.csv.gz' %
                                                (line, i), header=None, names=[col_name], index_col=0)
 
     feature_column += ['L%s_hash_cnt_cat' % i for i in range(4)]

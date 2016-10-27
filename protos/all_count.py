@@ -23,6 +23,8 @@ DATA_DIR = os.path.join(APP_ROOT, 'data')
 TRAIN_DATA = os.path.join(DATA_DIR, 'train_etl_sampling.csv.gz')
 TEST_DATA = os.path.join(DATA_DIR, 'test_simple_join.csv.gz')
 TARGET_COLUMN_NAME = u'Response'
+from feature_1009 import LIST_COLUMN_ZERO_MIX
+
 
 from utils import mcc_optimize, evalmcc_xgb_min
 from feature import LIST_FEATURE_COLUMN_NAME, LIST_DUPLICATE_COL_NAME, LIST_POSITIVE_NA_COL_NAME, LIST_SAME_COL, LIST_DUPLIDATE_CAT, LIST_DUPLIDATE_DATE
@@ -48,13 +50,74 @@ def make_count(pair):
     logger.info(name)
     if name == 'Id' or name == TARGET_COLUMN_NAME:
         return series
+
     col_name = name + '_CNT'
+    if col_name in LIST_COLUMN_ZERO_MIX:
+        return None
+
     df_hash = pandas.DataFrame(series.values, columns=[col_name])
     df_cnt = df_hash.groupby(col_name)[[col_name]].count()
     df_hash.columns = ['hoge']
     df = df_hash.merge(df_cnt, how='left', left_on='hoge', right_index=True, copy=False)
 
-    return df[col_name]
+    return df[col_name].fillna(1).astype(numpy.int32)
+
+
+def save(data):
+    i = 0
+    idx = data.index.values
+    num = 10000
+    res = []
+    p = Pool()
+    for i in range(int(len(idx) / num) + 1):
+        if i * num > len(idx):
+            break
+
+        if (i + 1) * num > len(idx):
+            ix = idx[i * num:]
+        else:
+            ix = idx[i * num: (i + 1) * num]
+
+        df = data.ix[ix]
+        res.append(p.apply_async(read_df, (df, i)))
+        i += 1
+    [r.get() for r in res]
+    p.close()
+    p.join()
+
+
+def read_df(df, i):
+    df.to_csv(os.path.join(DATA_DIR, 'train_etl2/train_etl2_%s.csv.gz' % i), index=False, compression='gzip')
+    logger.info('load end %s' % i)
+
+
+def read_df2(df, i):
+    df.to_csv(os.path.join(DATA_DIR, 'test_etl2/train_etl2_%s.csv.gz' % i), index=False, compression='gzip')
+    logger.info('load end %s' % i)
+
+
+def save_test(data):
+    i = 0
+    idx = data.index.values
+    num = 10000
+    res = []
+    p = Pool()
+    for i in range(int(len(idx) / num) + 1):
+        if i * num > len(idx):
+            break
+
+        if (i + 1) * num > len(idx):
+            ix = idx[i * num:]
+        else:
+            ix = idx[i * num: (i + 1) * num]
+
+        df = data.ix[ix]
+        res.append(p.apply_async(read_df2, (df, i)))
+        i += 1
+    [r.get() for r in res]
+    p.close()
+    p.join()
+
 
 if __name__ == '__main__':
     logger.info('load start')
@@ -66,25 +129,32 @@ if __name__ == '__main__':
     train_data = pandas.concat(p.map(read_csv,
                                      glob.glob(os.path.join(DATA_DIR, 'train_etl/*')) +
                                      glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
-                                     )).reset_index(drop=True)
+                                     ), ignore_index=True)
     p.close()
     p.join()
 
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     #feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO]
-
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
     logger.info('load end')
     p = Pool()
     list_series = p.map(make_count, train_data.iteritems())
     p.close()
     p.join()
+    del train_data
+    gc.collect()
+
     logger.info('conv end')
     aaa = pandas.DataFrame()
-    for series in list_series:
+    for i, series in enumerate(list_series):
+        if series is None:
+            continue
         aaa[series.name] = series.values
         del series
-        gc.collect()
+        if i % 100 == 0:
+            logger.info('pros %s' % i)
+            gc.collect()
+
     logger.info('df end')
-    aaa[aaa[TARGET_COLUMN_NAME] == aaa[TARGET_COLUMN_NAME]].to_csv('../data/train_etl2/train.csv.gz', compression='gzip')
-    aaa[aaa[TARGET_COLUMN_NAME] != aaa[TARGET_COLUMN_NAME]].to_csv('../data/test_etl2/test.csv.gz', compression='gzip')
+    save(aaa[aaa[TARGET_COLUMN_NAME] == aaa[TARGET_COLUMN_NAME]])
+    save_test(aaa[aaa[TARGET_COLUMN_NAME] != aaa[TARGET_COLUMN_NAME]])

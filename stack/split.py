@@ -52,22 +52,40 @@ def read_csv(filename):
 
 
 def read_df(df, i):
-    df.to_csv(os.path.join(DATA_DIR, 'test_join/test_join_%s.csv.gz' % i), index=False, compression='gzip')
+    df.to_csv(os.path.join(DATA_DIR, 'train_join/train_join_%s.csv.gz' % i), index=False, compression='gzip')
     logger.info('load end %s' % i)
 
 if __name__ == '__main__':
     logger.info('load start')
     p = Pool()
 
-    test_data = pandas.concat(p.map(read_csv,
-                                    glob.glob(os.path.join(DATA_DIR, 'test_etl/*'))
-                                    )).reset_index(drop=True)
+    train_data = pandas.concat(p.map(read_csv,
+                                     glob.glob(os.path.join(DATA_DIR, 'train_etl/*'))
+                                     ), ignore_index=True)
 
-    test_data_cnt = pandas.read_csv(os.path.join(DATA_DIR, 'test_etl2/test.csv.gz')).reset_index(drop=True)
+    train_data_cnt = pandas.concat(p.map(read_csv,
+                                         glob.glob(os.path.join(DATA_DIR, 'train_etl2/*'))
+                                         ), ignore_index=True)
+
     p.close()
     p.join()
     logger.info('end load')
-    data = test_data.merge(test_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
+    logger.info('a %s %s' % train_data.shape)
+    logger.info('cnt %s %s' % train_data_cnt.shape)
+    feature_column = [col for col in train_data.columns.values if col not in LIST_COLUMN_ZERO_MIX +
+                      [TARGET_COLUMN_NAME, 'Id']]
+    feature_column_cnt = [
+        col for col in train_data_cnt.columns.values if col not in LIST_COLUMN_ZERO_MIX + [TARGET_COLUMN_NAME, 'Id']]
+
+    train_data = train_data[[TARGET_COLUMN_NAME, 'Id'] + feature_column]
+    train_data_cnt = train_data_cnt[['Id'] + feature_column_cnt]
+
+    gc.collect()
+    data = train_data.merge(train_data_cnt, how='left', left_on='Id', right_on='Id', copy=False)
+    logger.info('end merge')
+    del train_data
+    del train_data_cnt
+    gc.collect()
 
     i = 0
     idx = data.index.values
