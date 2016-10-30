@@ -55,11 +55,22 @@ def read_csv(filename):
 
 def make_stack(df, feature_columns):
     logger.info('STACKING!!')
-    data = pandas.read_csv('stack_1_pred.csv')[['Id', 'pred']]
+    data = pandas.read_csv('stack_1_pred_1028.csv')[['Id', 'pred']]
     data.columns = ['Id', 'L_pred']
     feature_columns += ['L_pred']
     data['Id'] = data['Id'].astype(int)
     df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
+
+    ids = pandas.read_csv('stack_1_id_1.csv')['0'].values.astype(int)
+    data = pandas.read_csv('stack_1_data_1.csv')
+
+    new_cols = ['L0_L1_L2_L3_pred_%s' % col for col in data.columns.values]
+    data.columns = new_cols
+    feature_columns += new_cols
+
+    data['Id'] = ids
+    df = pandas.merge(df, data, how='left', left_on='Id', right_on='Id')
+
     return df, feature_columns
 
 
@@ -118,27 +129,31 @@ if __name__ == '__main__':
     logger.info('load start')
     p = Pool()
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_join/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_hosaka/*'))
                                      )).reset_index(drop=True)
 
     p.close()
     p.join()
+
     logger.info('shape %s %s' % train_data.shape)
 
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
+    train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
+    gc.collect()
+    # with open('train_data.pkl.gz', 'wb') as f:
+    #    pickle.dump(train_data, f, -1)
+    """
+    feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX +
+                      LIST_ZERO_COL + LIST_ZERO_COL2 + LIST_ZERO_COL3 +
+                      LIST_ZERO_COL_CNT + LIST_ZERO_COL_CNT2 +
+                      LIST_ZERO_COL_ALL]
+    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
+    """
+    train_data['Id'] = train_data['Id'].astype(int)
 
     train_data, feature_column = make_stack(train_data, feature_column)
-    train_data, feature_column = make_chi(train_data, feature_column)
-    train_data, feature_column = make_chi2(train_data, feature_column)
-    train_data, feature_column = make_chi3(train_data, feature_column)
-
-    feature_column = [col for col in feature_column if col not in
-                      LIST_ZERO_COL +
-                      LIST_ZERO_COL_CNT +
-                      LIST_ZERO_COL_ALL + LIST_ZERO_COL_ALL2 + LIST_ZERO_COL_ALL3
-                      ]
-    feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
-
+    #train_data, feature_column = make_chi2(train_data, feature_column)
+    #train_data, feature_column = make_chi3(train_data, feature_column)
     target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_), index=train_data['Id'].values)
     data = train_data[feature_column + ['Id']].fillna(-10).set_index('Id')
 
@@ -149,13 +164,13 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % data.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
-    all_params = {'max_depth': [7],
-                  'n_estimators': [150],
-                  'learning_rate': [0.1],
+    all_params = {'max_depth': [5],
+                  'learning_rate': [0.06],
                   'scale_pos_weight': [1],
-                  'min_child_weight': [0.01],
-                  'subsample': [1],
-                  'colsample_bytree': [0.5],
+                  'min_child_weight': [0],
+                  'subsample': [0.99],
+                  'colsample_bytree': [0.8],
+                  'colsample_bylevel': [0.8],
                   'booster': ['dart'],
                   'normalize_type': ['forest'],
                   'sample_type': ['weighted'],
@@ -168,6 +183,7 @@ if __name__ == '__main__':
     cv = make_cv()  # cv = StratifiedKFold(target, n_folds=3, shuffle=True, random_state=0)
 
     from xgboost import DMatrix, train
+
     logger.info('cv_start')
 
     with open('train_feature_2_2.py', 'w') as f:
@@ -186,7 +202,7 @@ if __name__ == '__main__':
             insample_ans = []
             for i in ['']:  #
                 logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
+                cols = feature_column  # [col for col in feature_column if 'L%s' % i in col]
                 train_dmatrix = DMatrix(data.ix[train_idx, cols], label=target.ix[train_idx].values)
                 test_dmatrix = DMatrix(data.ix[test_idx, cols], label=target.ix[test_idx].values)
                 logger.info('model xg: %s' % i)
@@ -198,8 +214,8 @@ if __name__ == '__main__':
                 booster = train(params, train_dmatrix,
                                 evals=[(test_dmatrix, 'eval')],
                                 feval=evalmcc_xgb_min,
-                                num_boost_round=300,
-                                early_stopping_rounds=50,
+                                num_boost_round=1000,
+                                early_stopping_rounds=1000,
                                 verbose_eval=True)
 
                 avg_ntree += booster.best_ntree_limit

@@ -83,29 +83,31 @@ def main():
 
     with open('xgb_model_1.pkl', 'rb') as f:
         model = pickle.load(f)
-    with open('xgb_model_2.pkl', 'rb') as f:
-        model2 = pickle.load(f)
+    # with open('xgb_model_2.pkl', 'rb') as f:
+    #    model2 = pickle.load(f)
 
     p = Pool()
 
     test_data = pandas.concat(p.map(read_csv,
-                                    glob.glob(os.path.join(DATA_DIR, 'test_join/*'))
+                                    glob.glob(os.path.join(DATA_DIR, 'test_hosaka/*'))
                                     )).reset_index(drop=True)
     p.close()
     p.join()
 
-    logger.info('end load')
+    logger.info('end load %s %s' % test_data.shape)
 
     gc.collect()
     logger.info('end merge')
     from train_feature_2_1 import LIST_TRAIN_COL
     feature_column = LIST_TRAIN_COL
     data = test_data[feature_column].fillna(-10)
+    ids = test_data['Id'].values
     pred = []
 
     cnt = 0
     train_dmatrix = DMatrix(data, label=None)
     del data
+    del test_data
     gc.collect()
 
     for j, jj in enumerate(['']):
@@ -115,8 +117,9 @@ def main():
 
     pred = pandas.DataFrame(pred,
                             columns=['L_pred'],
-                            index=test_data['Id'].values)
-
+                            index=ids)
+    import pdb
+    pdb.set_trace()
     logger.info('end pred1')
     df = test_data.merge(pred, how='left', left_on='Id', right_index=True, copy=False)
     from train_feature_2_2 import LIST_TRAIN_COL

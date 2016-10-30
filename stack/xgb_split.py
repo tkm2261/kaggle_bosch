@@ -134,9 +134,11 @@ if __name__ == '__main__':
 
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     train_data = train_data[['Id', TARGET_COLUMN_NAME] + feature_column]
+    train_data['Id'] = train_data['Id'].astype(int)
     gc.collect()
 
-    target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_), index=train_data['Id'].values)
+    target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(
+        numpy.bool_), index=train_data['Id'].values)
     data = train_data[feature_column + ['Id']].fillna(-10).set_index('Id')
 
     del train_data

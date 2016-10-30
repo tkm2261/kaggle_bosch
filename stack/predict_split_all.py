@@ -98,7 +98,7 @@ def main():
             cnt += 1
 
     pred = pandas.DataFrame(numpy.array(pred).T,
-                            columns=['L_pred_%s' % col for col in range(cnt)],
+                            columns=['L0_L1_L2_L3_pred_%s' % col for col in range(cnt)],
                             index=test_data['Id'].values)
 
     logger.info('end pred1')

@@ -41,6 +41,7 @@ from feature_1026_all import LIST_ZERO_COL_ALL
 
 log_fmt = '%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s '
 logging.basicConfig(format=log_fmt,
+                    filename='hoge.log',
                     datefmt='%Y-%m-%d/%H:%M:%S',
                     level='INFO')
 logger = logging.getLogger(__name__)
@@ -131,7 +132,7 @@ if __name__ == '__main__':
     logger.info('load start')
     p = Pool()
     train_data = pandas.concat(p.map(read_csv,
-                                     glob.glob(os.path.join(DATA_DIR, 'train_join/*'))
+                                     glob.glob(os.path.join(DATA_DIR, 'train_hosaka/*'))
                                      )).reset_index(drop=True)
 
     p.close()
@@ -144,13 +145,14 @@ if __name__ == '__main__':
     gc.collect()
     # with open('train_data.pkl.gz', 'wb') as f:
     #    pickle.dump(train_data, f, -1)
-
+    """
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX +
                       LIST_ZERO_COL + LIST_ZERO_COL2 + LIST_ZERO_COL3 +
                       LIST_ZERO_COL_CNT + LIST_ZERO_COL_CNT2 +
                       LIST_ZERO_COL_ALL]
     feature_column = [col for col in feature_column if 'hash' not in col or 'cnt' in col]
-
+    """
+    train_data['Id'] = train_data['Id'].astype(int)
     target = pandas.Series(train_data[TARGET_COLUMN_NAME].values.astype(numpy.bool_), index=train_data['Id'].values)
     data = train_data[feature_column + ['Id']].fillna(-10).set_index('Id')
 
@@ -161,13 +163,13 @@ if __name__ == '__main__':
     logger.info('shape %s %s' % data.shape)
     logger.info('pos num: %s, pos rate: %s' % (sum(target), pos_rate))
 
-    all_params = {'max_depth': [6],
-                  'n_estimators': [150],
-                  'learning_rate': [0.1],
+    all_params = {'max_depth': [10],
+                  'learning_rate': [0.06],
                   'scale_pos_weight': [1],
-                  'min_child_weight': [0.01],
-                  'subsample': [1],
-                  'colsample_bytree': [0.5],
+                  'min_child_weight': [0],
+                  'subsample': [0.99],
+                  'colsample_bytree': [0.8],
+                  'colsample_bylevel': [0.8],
                   'booster': ['dart'],
                   'normalize_type': ['forest'],
                   'sample_type': ['weighted'],
@@ -183,9 +185,8 @@ if __name__ == '__main__':
     logger.info('cv_start')
     with open('train_feature_2_1.py', 'w') as f:
         f.write("LIST_TRAIN_COL = ['" + "', '".join(feature_column) + "']\n\n")
-    exit()
     avg_ntree = 0
-    '''
+
     for params in ParameterGrid(all_params):
         logger.info('param: %s' % (params))
         all_ans = None
@@ -198,21 +199,22 @@ if __name__ == '__main__':
             insample_ans = []
             for i in ['']:  #
                 logger.info('model: %s' % i)
-                cols = [col for col in feature_column if 'L%s' % i in col]
+                cols = feature_column  # [col for col in feature_column if 'L%s' % i in col]
                 train_dmatrix = DMatrix(data.ix[train_idx, cols], label=target.ix[train_idx].values)
                 test_dmatrix = DMatrix(data.ix[test_idx, cols], label=target.ix[test_idx].values)
                 logger.info('model xg: %s' % i)
+                """
                 booster = train(params, train_dmatrix,
                                 num_boost_round=500,
                                 verbose_eval=True)
                 """
-        booster = train(params, train_dmatrix,
-                        evals=[(test_dmatrix, 'eval')],
-                        feval=evalmcc_xgb_min,
-                        num_boost_round=700,
-                        early_stopping_rounds=200,
-                        verbose_eval=True)
-        """
+                booster = train(params, train_dmatrix,
+                                evals=[(test_dmatrix, 'eval')],
+                                feval=evalmcc_xgb_min,
+                                num_boost_round=924,
+                                early_stopping_rounds=924,
+                                verbose_eval=True)
+
                 avg_ntree += booster.best_ntree_limit
                 ans = booster.predict(test_dmatrix,
                                       ntree_limit=booster.best_ntree_limit)
@@ -246,7 +248,7 @@ if __name__ == '__main__':
 
     pandas.DataFrame(numpy.array([all_ids, all_target, all_ans]).T,
                      columns=['Id', TARGET_COLUMN_NAME, 'pred']).to_csv('stack_1_pred.csv', index=False)
-    '''
+
     train_dmatrix = DMatrix(data, label=target.values)
     test_dmatrix = DMatrix(data, label=target.values)
     del data
@@ -255,7 +257,7 @@ if __name__ == '__main__':
     for params in ParameterGrid(all_params):
         pass
     booster = train(params, train_dmatrix,
-                    num_boost_round=500,  # int(avg_ntree / 3) + 1,
+                    num_boost_round=924,  # int(avg_ntree / 3) + 1,
                     verbose_eval=True)
     logger.info('end')
     with open('xgb_model_1.pkl', 'wb') as f:

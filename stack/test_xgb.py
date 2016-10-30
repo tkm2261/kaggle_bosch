@@ -143,7 +143,6 @@ if __name__ == '__main__':
     feature_column = [col for col in train_data.columns if col != TARGET_COLUMN_NAME and col != 'Id']
     logger.info('load end')
 
-    train_data, feature_column = make_hash_cst(train_data, feature_column)
     #feature_column += feature_column_cnt
     feature_column = [col for col in feature_column if col not in LIST_COLUMN_ZERO_MIX]
     #feature_column = [col for col in feature_column if col not in LIST_ZEOO_2]
